@@ -3,8 +3,29 @@
     <el-button type="primary" @click="showAddDialog">Add Item</el-button>
     <el-button @click="getItems">Refresh</el-button>
     <el-table :data="items" style="width: 100%">
-      <el-table-column prop="id" label="ID"></el-table-column>
-      <el-table-column prop="name" label="Name"></el-table-column>
+      <el-table-column label="#">
+        <template #default="{ $index }">
+          {{ $index + 1 }}
+        </template>
+      </el-table-column>
+
+
+      <!-- <el-table-column prop="name" label="Name" title="name"></el-table-column> -->
+
+      <el-table-column prop="name" label="Name" title="name">
+      <template #default="scope">
+        <el-popover effect="light" trigger="hover" placement="top" width="auto" :title="scope.row.name" :content="scope.row.remark" v-if="scope.row.remark!=null">
+          <!-- <template #default>
+            <div>{{ scope.row.name }}</div>
+          </template> -->
+          <template #reference>
+            {{scope.row.name}}
+          </template>
+        </el-popover>
+      </template>
+    </el-table-column>
+
+
       <el-table-column prop="price" label="Price"></el-table-column>
       <el-table-column
         prop="purchaseDate"
@@ -50,6 +71,16 @@
             value-format="YYYY-MM-DD"
           ></el-date-picker>
         </el-form-item>
+
+        <el-form-item label="Remark" prop="remark">
+          <el-input
+            v-model="newItem.remark"
+            style="width: 500px"
+            :rows="3"
+            type="textarea"
+            placeholder=""
+          />
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -83,6 +114,7 @@ const newItem = reactive({
   name: "",
   price: "",
   purchaseDate: "",
+  remark: "",
 });
 
 const editMode = ref(false);
@@ -101,6 +133,7 @@ const showAddDialog = () => {
   newItem.name = "";
   newItem.price = "";
   newItem.purchaseDate = "";
+  newItem.remark = "";
   editMode.value = false;
   dialogVisible.value = true;
 };
@@ -121,6 +154,7 @@ const editItem = (item) => {
   newItem.id = item.id;
   newItem.price = item.price;
   newItem.purchaseDate = item.purchaseDate;
+  newItem.remark = item.remark;
 
   editMode.value = true;
 
