@@ -47,7 +47,8 @@
 
     <el-table-column label="Status" >
       <template #default="{ row }">
-        <el-tag style="margin-right: 5px;" v-if="row.statusStr">{{ row.statusStr }}</el-tag>
+        <el-tag :type="row.status === 'NORMAL' ? 'success' : 'danger'"
+        style="margin-right: 5px;" v-if="row.statusStr">{{ row.statusStr }}</el-tag>
       </template>
     </el-table-column>
 
