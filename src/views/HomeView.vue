@@ -2,7 +2,7 @@
   <div>
     <el-button type="primary" @click="showAddDialog">Add Item</el-button>
     <el-button @click="getItems">Refresh</el-button>
-    <el-table :data="items" style="width: 100%">
+    <el-table :data="items" style="width: 100%" :default-sort="{ prop: 'date', order: 'descending' }">
       <el-table-column label="#">
         <template #default="{ $index }">
           {{ $index + 1 }}
@@ -12,9 +12,9 @@
 
       <!-- <el-table-column prop="name" label="Name" title="name"></el-table-column> -->
 
-      <el-table-column prop="name" label="Name" title="name">
+      <el-table-column prop="name" label="Name" title="name" sortable>
       <template #default="scope">
-        <el-popover effect="light" trigger="hover" placement="top" width="auto" :title="scope.row.name" :content="scope.row.remark" v-if="scope.row.remark!=null">
+        <el-popover effect="light" trigger="hover" placement="top" width="auto" :title="scope.row.name" :content="scope.row.remark" v-if="scope.row.remark!=null&&scope.row.remark.length!=0">
           <!-- <template #default>
             <div>{{ scope.row.name }}</div>
           </template> -->
@@ -26,15 +26,30 @@
     </el-table-column>
 
 
-      <el-table-column prop="price" label="Price"></el-table-column>
+      <el-table-column prop="price" label="Price" sortable></el-table-column>
       <el-table-column
         prop="purchaseDate"
-        label="Purchase Date"
+        label="Purchase Date" sortable
       ></el-table-column>
       <el-table-column
         prop="ownershipDuration"
         label="Ownership Duration"
       ></el-table-column>
+
+             <!-- 新添加的列，显示标签 -->
+    <el-table-column label="Category"    :filters="categoriesFilters" :filter-method="filterHandler"
+    >
+      <template #default="{ row }">
+        <el-tag style="margin-right: 5px;" v-if="row.category">{{ row.category.name }}</el-tag>
+      </template>
+    </el-table-column>
+
+
+    <el-table-column label="Status" >
+      <template #default="{ row }">
+        <el-tag style="margin-right: 5px;" v-if="row.statusStr">{{ row.statusStr }}</el-tag>
+      </template>
+    </el-table-column>
 
       <el-table-column fixed="right" label="Operations" width="120">
         <template #default="{ row }">
@@ -50,6 +65,13 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <el-text>
+      
+      Total value: {{ totalValue }}
+
+
+    </el-text>
 
     <el-dialog
       v-model="dialogVisible"
@@ -71,6 +93,18 @@
             value-format="YYYY-MM-DD"
           ></el-date-picker>
         </el-form-item>
+
+
+
+        <el-form-item label="Category">
+        <el-select v-model="newItem.categoryId"  filterable   clearable  default-first-option :reserve-keyword="false">
+            <el-option v-for="cat in categoriesFilters" :key="cat.id" :label="cat.text" :value="cat.id"></el-option>
+        </el-select>
+    </el-form-item>
+
+    
+
+
 
         <el-form-item label="Remark" prop="remark">
           <el-input
@@ -107,6 +141,9 @@
 import { ref, onMounted, reactive } from "vue";
 import axios from "axios";
 
+const totalValue = ref(0);
+var categoriesFilters = ref([]);
+
 const items = ref([]);
 const dialogVisible = ref(false);
 const newItem = reactive({
@@ -115,9 +152,21 @@ const newItem = reactive({
   price: "",
   purchaseDate: "",
   remark: "",
+  categoryId: ""
 });
 
 const editMode = ref(false);
+
+
+const getCategories = async () => {
+  try {
+    const response = await axios.get("/api/categories");
+    categoriesFilters.value = response.data.map(cat => ({ text: cat.name, value: cat.name, id: cat.id }));
+
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+  }
+};
 
 const getItems = async () => {
   try {
@@ -128,11 +177,21 @@ const getItems = async () => {
   }
 };
 
+const getTotalValue = async () => {
+  try {
+    const response = await axios.get("/api/items/total-value");
+    totalValue.value = response.data;
+  } catch (error) {
+    console.error("Error fetching items total value:", error);
+  }
+};
+
 const showAddDialog = () => {
   newItem.id = "";
   newItem.name = "";
   newItem.price = "";
   newItem.purchaseDate = "";
+  newItem.categoryId = "";
   newItem.remark = "";
   editMode.value = false;
   dialogVisible.value = true;
@@ -155,6 +214,7 @@ const editItem = (item) => {
   newItem.price = item.price;
   newItem.purchaseDate = item.purchaseDate;
   newItem.remark = item.remark;
+  newItem.categoryId = item.categoryId;
 
   editMode.value = true;
 
@@ -163,6 +223,8 @@ const editItem = (item) => {
 
 onMounted(() => {
   getItems();
+  getCategories();
+  getTotalValue();
 });
 
 const updateItem = async () => {
@@ -186,6 +248,15 @@ const deleteItem = async (id) => {
     console.error("Error deleting item:", error);
   }
 };
+
+const filterHandler = (
+  value,
+  row,
+  column
+) => {
+  // if (row.category)
+  return row.category.name === value;
+}
 </script>
 
 <style>
