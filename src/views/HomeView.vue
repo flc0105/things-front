@@ -14,7 +14,7 @@
 
       <el-table-column prop="name" label="Name" title="name" sortable>
       <template #default="scope">
-        <el-popover effect="light" trigger="hover" placement="top" width="auto" :title="scope.row.name" :content="scope.row.remark" v-if="scope.row.remark!=null&&scope.row.remark.length!=0">
+        <el-popover effect="light" trigger="hover" placement="top" width="auto" :title="scope.row.name" :content="scope.row.remark" v-if="scope.row.remark!=null&&scope.row.remark!=''">
           <!-- <template #default>
             <div>{{ scope.row.name }}</div>
           </template> -->
