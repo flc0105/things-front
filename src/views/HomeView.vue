@@ -37,11 +37,33 @@
       </el-table-column>
 
       <el-table-column prop="price" label="Price" sortable></el-table-column>
-      <el-table-column
-        prop="purchaseDate"
-        label="Purchase Date"
-        sortable
-      ></el-table-column>
+      <el-table-column prop="purchaseDate" label="Purchase Date" sortable>
+        <template #default="scope">
+          <el-popover
+            effect="light"
+            trigger="click"
+            placement="right"
+            width="400"
+            :title="scope.row.name"
+            v-if="scope.row.timelineEvents != null && scope.row.timelineEvents.length != 0"
+          >
+            <div>
+              <el-timeline >
+                <el-timeline-item
+                  v-for="(activity, index) in scope.row.timelineEvents"
+                  :key="index"
+                  :timestamp="activity.date"
+                >
+                  {{ activity.event }}
+                </el-timeline-item>
+              </el-timeline>
+            </div>
+            <template #reference>
+              {{ scope.row.purchaseDate }}
+            </template>
+          </el-popover>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="ownershipDuration"
         label="Ownership Duration"
@@ -154,7 +176,6 @@
             </div>
             <template #tip>
               <div class="el-upload__tip">
-                
                 <!-- {{ "Selected file:" + newItem.attachment.originalFileName }}    -->
                 <el-link
                   style="font-size: 12px"
