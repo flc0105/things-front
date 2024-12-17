@@ -2,55 +2,74 @@
   <div>
     <el-button type="primary" @click="showAddDialog">Add Item</el-button>
     <el-button @click="getItems">Refresh</el-button>
-    <el-table :data="items" style="width: 100%" :default-sort="{ prop: 'date', order: 'descending' }">
+    <el-table
+      :data="items"
+      style="width: 100%"
+      :default-sort="{ prop: 'date', order: 'descending' }"
+    >
       <el-table-column label="#">
         <template #default="{ $index }">
           {{ $index + 1 }}
         </template>
       </el-table-column>
 
-
       <!-- <el-table-column prop="name" label="Name" title="name"></el-table-column> -->
 
       <el-table-column prop="name" label="Name" title="name" sortable>
-      <template #default="scope">
-        <el-popover effect="light" trigger="hover" placement="top" width="auto" :title="scope.row.name" :content="scope.row.remark" v-if="scope.row.remark!=null&&scope.row.remark!=''">
-          <!-- <template #default>
+        <template #default="scope">
+          <el-popover
+            effect="light"
+            trigger="hover"
+            placement="top"
+            width="auto"
+            :title="scope.row.name"
+            :content="scope.row.remark"
+            v-if="scope.row.remark != null && scope.row.remark != ''"
+          >
+            <!-- <template #default>
             <div>{{ scope.row.name }}</div>
           </template> -->
-          <template #reference>
-            {{scope.row.name}}
-          </template>
-        </el-popover>
-      </template>
-    </el-table-column>
-
+            <template #reference>
+              {{ scope.row.name }}
+            </template>
+          </el-popover>
+        </template>
+      </el-table-column>
 
       <el-table-column prop="price" label="Price" sortable></el-table-column>
       <el-table-column
         prop="purchaseDate"
-        label="Purchase Date" sortable
+        label="Purchase Date"
+        sortable
       ></el-table-column>
       <el-table-column
         prop="ownershipDuration"
         label="Ownership Duration"
       ></el-table-column>
 
-             <!-- 新添加的列，显示标签 -->
-    <el-table-column label="Category"    :filters="categoriesFilters" :filter-method="filterHandler"
-    >
-      <template #default="{ row }">
-        <el-tag style="margin-right: 5px;" v-if="row.category">{{ row.category.name }}</el-tag>
-      </template>
-    </el-table-column>
+      <!-- 新添加的列，显示标签 -->
+      <el-table-column
+        label="Category"
+        :filters="categoriesFilters"
+        :filter-method="filterHandler"
+      >
+        <template #default="{ row }">
+          <el-tag style="margin-right: 5px" v-if="row.category">{{
+            row.category.name
+          }}</el-tag>
+        </template>
+      </el-table-column>
 
-
-    <el-table-column label="Status" >
-      <template #default="{ row }">
-        <el-tag :type="row.status === 'NORMAL' ? 'success' : 'danger'"
-        style="margin-right: 5px;" v-if="row.statusStr">{{ row.statusStr }}</el-tag>
-      </template>
-    </el-table-column>
+      <el-table-column label="Status">
+        <template #default="{ row }">
+          <el-tag
+            :type="row.status === 'NORMAL' ? 'success' : 'danger'"
+            style="margin-right: 5px"
+            v-if="row.statusStr"
+            >{{ row.statusStr }}</el-tag
+          >
+        </template>
+      </el-table-column>
 
       <el-table-column fixed="right" label="Operations" width="120">
         <template #default="{ row }">
@@ -67,12 +86,7 @@
       </el-table-column>
     </el-table>
 
-    <el-text>
-      
-      Total value: {{ totalValue }}
-
-
-    </el-text>
+    <el-text> Total value: {{ totalValue }} </el-text>
 
     <el-dialog
       v-model="dialogVisible"
@@ -95,17 +109,22 @@
           ></el-date-picker>
         </el-form-item>
 
-
-
         <el-form-item label="Category">
-        <el-select v-model="newItem.categoryId"  filterable   clearable  default-first-option :reserve-keyword="false">
-            <el-option v-for="cat in categoriesFilters" :key="cat.id" :label="cat.text" :value="cat.id"></el-option>
-        </el-select>
-    </el-form-item>
-
-    
-
-
+          <el-select
+            v-model="newItem.categoryId"
+            filterable
+            clearable
+            default-first-option
+            :reserve-keyword="false"
+          >
+            <el-option
+              v-for="cat in categoriesFilters"
+              :key="cat.id"
+              :label="cat.text"
+              :value="cat.id"
+            ></el-option>
+          </el-select>
+        </el-form-item>
 
         <el-form-item label="Remark" prop="remark">
           <el-input
@@ -115,6 +134,41 @@
             type="textarea"
             placeholder=""
           />
+        </el-form-item>
+
+        <!--attachments-->
+        <el-form-item label="Attachment">
+          <el-upload
+            drag
+            action="/api/attachments"
+            limit="1"
+            :on-success="handleUploadSuccess"
+            :on-error="handleUploadError"
+            :on-remove="handleUploadFileRemove"
+            :on-exceed="handleUploadExceed"
+            v-model:file-list="fileList"
+          >
+            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+            <div class="el-upload__text">
+              Drop file here or <em>click to upload</em>
+            </div>
+            <template #tip>
+              <div class="el-upload__tip">
+                
+                <!-- {{ "Selected file:" + newItem.attachment.originalFileName }}    -->
+                <el-link
+                  style="font-size: 12px"
+                  v-if="newItem.attachmentId"
+                  :underline="false"
+                  type="primary"
+                  :href="
+                    '/api/attachments/' + newItem.attachmentId + '/download'
+                  "
+                  >{{ "Selected file:" + newItem.attachmentId }}</el-link
+                >
+              </div>
+            </template>
+          </el-upload>
         </el-form-item>
       </el-form>
 
@@ -142,6 +196,9 @@
 import { ref, onMounted, reactive } from "vue";
 import axios from "axios";
 
+import { UploadFilled } from "@element-plus/icons-vue";
+import { ElMessage } from "element-plus";
+
 const totalValue = ref(0);
 var categoriesFilters = ref([]);
 
@@ -153,17 +210,23 @@ const newItem = reactive({
   price: "",
   purchaseDate: "",
   remark: "",
-  categoryId: ""
+  categoryId: "",
+  attachmentId: "",
+  // attachment: {},
 });
 
 const editMode = ref(false);
 
+const fileList = ref([]); // 文件列表
 
 const getCategories = async () => {
   try {
     const response = await axios.get("/api/categories");
-    categoriesFilters.value = response.data.map(cat => ({ text: cat.name, value: cat.name, id: cat.id }));
-
+    categoriesFilters.value = response.data.map((cat) => ({
+      text: cat.name,
+      value: cat.name,
+      id: cat.id,
+    }));
   } catch (error) {
     console.error("Error fetching categories:", error);
   }
@@ -188,12 +251,15 @@ const getTotalValue = async () => {
 };
 
 const showAddDialog = () => {
+  fileList.value.length = 0;
   newItem.id = "";
   newItem.name = "";
   newItem.price = "";
   newItem.purchaseDate = "";
   newItem.categoryId = "";
   newItem.remark = "";
+  newItem.attachmentId = "";
+  newItem.attachment = { originalFileName: "None" };
   editMode.value = false;
   dialogVisible.value = true;
 };
@@ -210,12 +276,20 @@ const addItem = async () => {
 };
 
 const editItem = (item) => {
+  fileList.value.length = 0;
   newItem.name = item.name;
   newItem.id = item.id;
   newItem.price = item.price;
   newItem.purchaseDate = item.purchaseDate;
   newItem.remark = item.remark;
   newItem.categoryId = item.categoryId;
+  newItem.attachmentId = item.attachmentId;
+  newItem.attachment = "";
+  // if (item.attachment) {
+  //   newItem.attachment = item.attachment;
+  // } else {
+  //   newItem.attachment = {"originalFileName": "None"};
+  // }
 
   editMode.value = true;
 
@@ -250,14 +324,50 @@ const deleteItem = async (id) => {
   }
 };
 
-const filterHandler = (
-  value,
-  row,
-  column
-) => {
+const filterHandler = (value, row, column) => {
   // if (row.category)
   return row.category.name === value;
-}
+};
+
+const handleUploadSuccess = (response, file, fileList) => {
+  // if (response.success) {
+  ElMessage({
+    type: "success",
+    message: "文件上传成功，文件ID：" + response.id,
+  });
+  newItem.attachmentId = response.id;
+  // newItem.attachment.originalFileName = response.originalFileName;
+  // }
+};
+
+const handleUploadError = (error, file, fileList) => {
+  ElMessage({
+    type: "error",
+    message: "文件上传失败：" + error.message, //JSON.parse(error.message).message,
+  });
+};
+
+// /**
+//  * 文件数量超过限制处理函数。
+//  *
+//  * @param {array} files - 已上传的文件列表。
+//  * @param {array} uploadFiles - 待上传的文件列表。
+//  */
+const handleUploadExceed = (files, uploadFiles) => {
+  ElMessage.warning(`只能上传一个附件`);
+};
+
+// /**
+//  * 文件被移除后处理函数。
+//  *
+//  * @param {object} file - 被移除的文件对象。
+//  * @param {array} uploadFiles - 剩余的文件列表。
+//  */
+const handleUploadFileRemove = (file, uploadFiles) => {
+  // console.log(file, uploadFiles);
+  newItem.attachmentId = null;
+  // newItem.attachment.originalFileName = {"originalFileName": "None"};
+};
 </script>
 
 <style>
