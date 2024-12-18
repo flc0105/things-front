@@ -3,7 +3,7 @@
     <el-button type="primary" @click="showAddDialog">Add Item</el-button>
     <el-button @click="getItems">Refresh</el-button>
     <el-table
-      :data="items"
+      :data="filterTableData"
       style="width: 100%"
       :default-sort="{ prop: 'date', order: 'descending' }"
     >
@@ -106,6 +106,14 @@
       </el-table-column>
 
       <el-table-column fixed="right" label="Operations" width="120">
+        <template #header>
+          <el-input
+            v-model="search"
+            size="small"
+            placeholder="Type to search"
+          />
+        </template>
+
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="editItem(row)"
             >Edit</el-button
@@ -156,6 +164,23 @@
               :key="cat.id"
               :label="cat.text"
               :value="cat.id"
+            ></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Status">
+          <el-select
+            v-model="newItem.status"
+            filterable
+            clearable
+            default-first-option
+            :reserve-keyword="false"
+          >
+            <el-option
+              v-for="status in itemStatusFilters"
+              :key="status.id"
+              :label="status.text"
+              :value="status.value"
             ></el-option>
           </el-select>
         </el-form-item>
@@ -226,7 +251,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from "vue";
+import { ref, onMounted, reactive, computed } from "vue";
 import axios from "axios";
 
 import { UploadFilled } from "@element-plus/icons-vue";
@@ -235,6 +260,15 @@ import { ElMessage } from "element-plus";
 const totalValue = ref(0);
 var categoriesFilters = ref([]);
 var itemStatusFilters = ref([]);
+
+const search = ref("");
+const filterTableData = computed(() =>
+  items.value.filter(
+    (data) =>
+      !search.value ||
+      data.name.toLowerCase().includes(search.value.toLowerCase())
+  )
+);
 
 const items = ref([]);
 const dialogVisible = ref(false);
@@ -245,6 +279,7 @@ const newItem = reactive({
   purchaseDate: "",
   remark: "",
   categoryId: "",
+  status: "",
   attachmentId: "",
 });
 
@@ -259,11 +294,15 @@ const getItemStatus = async () => {
     );
     itemStatusFilters.value = response.data.map((status) => ({
       text: status.name,
-      value: status.name,
+      value: status.code,
       id: status.id,
     }));
   } catch (error) {
     console.error("Error fetching item status:", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching item status:" + error.message,
+    });
   }
 };
 
@@ -277,6 +316,11 @@ const getCategories = async () => {
     }));
   } catch (error) {
     console.error("Error fetching categories:", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching categories:" + error.message,
+    });
+    
   }
 };
 
@@ -286,6 +330,10 @@ const getItems = async () => {
     items.value = response.data;
   } catch (error) {
     console.error("Error fetching items:", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching items:" + error,
+    });
   }
 };
 
@@ -295,6 +343,10 @@ const getTotalValue = async () => {
     totalValue.value = response.data;
   } catch (error) {
     console.error("Error fetching items total value:", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching items total value:" + error.message,
+    });
   }
 };
 
@@ -305,6 +357,7 @@ const showAddDialog = () => {
   newItem.price = "";
   newItem.purchaseDate = "";
   newItem.categoryId = "";
+  newItem.status = "NORMAL";
   newItem.remark = "";
   newItem.attachmentId = "";
   editMode.value = false;
@@ -317,8 +370,16 @@ const addItem = async () => {
     items.value.push(response.data);
     dialogVisible.value = false;
     this.$refs.newItemForm.resetFields(); // Reset form fields after adding
+    ElMessage({
+      type: "success",
+      message: "添加成功",
+    });
   } catch (error) {
     console.error("Error adding item:", error);
+    ElMessage({
+      type: "error",
+      message: "Error adding item:" + error.message,
+    });
   }
 };
 
@@ -330,6 +391,7 @@ const editItem = (item) => {
   newItem.purchaseDate = item.purchaseDate;
   newItem.remark = item.remark;
   newItem.categoryId = item.categoryId;
+  newItem.status = item.status;
   newItem.attachmentId = item.attachmentId;
   editMode.value = true;
   dialogVisible.value = true;
@@ -350,8 +412,16 @@ const updateItem = async () => {
       items.value.splice(index, 1, newItem);
     }
     dialogVisible.value = false;
+    ElMessage({
+      type: "success",
+      message: "修改成功",
+    });
   } catch (error) {
     console.error("Error updating item:", error);
+    ElMessage({
+      type: "error",
+      message: "Error updating item:" + error.message,
+    });
   }
 };
 
@@ -359,8 +429,16 @@ const deleteItem = async (id) => {
   try {
     await axios.delete(`/api/items/${id}`);
     items.value = items.value.filter((item) => item.id !== id);
+    ElMessage({
+      type: "success",
+      message: "删除成功",
+    });
   } catch (error) {
     console.error("Error deleting item:", error);
+    ElMessage({
+      type: "error",
+      message: "Error deleting item:" + error.message,
+    });
   }
 };
 
@@ -369,7 +447,7 @@ const categoryFilterHandler = (value, row, column) => {
 };
 
 const itemStatusFilterHandler = (value, row, column) => {
-  return row.statusStr === value;
+  return row.status === value;
 };
 
 const handleUploadSuccess = (response, file, fileList) => {
