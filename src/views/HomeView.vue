@@ -1,4 +1,5 @@
 <template>
+
   <div>
     <el-button type="primary" @click="showAddDialog">Add Item</el-button>
     <el-button @click="getItems">Refresh</el-button>
@@ -15,7 +16,7 @@
 
       <!-- <el-table-column prop="name" label="Name" title="name"></el-table-column> -->
 
-      <el-table-column prop="name" label="Name" title="name" sortable>
+      <el-table-column prop="name" label="Name" title="name" width="300" sortable>
         <template #default="scope">
           <el-popover
             effect="light"
@@ -61,6 +62,9 @@
                 </el-timeline-item>
               </el-timeline>
             </div>
+
+            <el-button type="primary" @click="getItemTimeline(scope.row.id);drawer=true " size="small">Add</el-button> 
+
             <template #reference>
               {{ scope.row.purchaseDate }}
             </template>
@@ -213,7 +217,6 @@
             </div>
             <template #tip>
               <div class="el-upload__tip">
-                <!-- {{ "Selected file:" + newItem.attachment.originalFileName }}    -->
                 <el-link
                   style="font-size: 12px"
                   v-if="newItem.attachmentId"
@@ -241,21 +244,68 @@
           </el-button>
         </span>
       </template>
-
-      <!-- <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="addItem">Add</el-button>
-      </div> -->
     </el-dialog>
+
+
+
+
+
+  <el-drawer v-model="drawer" :direction="direction" title="Add event">
+    <template #default>
+      <el-timeline>
+                <el-timeline-item
+                  v-for="(activity, index) in timelineEvents"
+                  :key="index"
+                  :timestamp="activity.date"
+                >
+                  {{ activity.event }}
+                </el-timeline-item>
+              </el-timeline>
+
+              <el-form
+                :model="newTimeline"
+                label-width="auto"
+              >
+                <el-form-item label="Event name" prop="event">
+                  <el-input
+                    v-model="newTimeline.event"
+                  ></el-input>
+                </el-form-item>
+
+                <el-form-item prop="date" label="Event date">
+                  <el-date-picker
+                    v-model="newTimeline.date"
+                    type="date"
+                    placeholder="Select Date"
+                    format="YYYY-MM-DD"
+                    value-format="YYYY-MM-DD"
+                  ></el-date-picker>
+                </el-form-item>
+                <el-button type="primary" @click="addEvent(timelineEvents[0].itemId)">Add</el-button>
+              </el-form>
+    </template>
+    <template #footer>
+      <div style="flex: auto">
+        <el-button type="primary" @click="drawer=false">Confirm</el-button>
+      </div>
+    </template>
+  </el-drawer>
+
   </div>
 </template>
 
-<script setup>
+<script lang="ts" setup>
+
+import type { DrawerProps } from 'element-plus';
 import { ref, onMounted, reactive, computed } from "vue";
 import axios from "axios";
 
 import { UploadFilled } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
+
+
+const drawer = ref(false)
+const direction = ref<DrawerProps['direction']>('rtl')
 
 const totalValue = ref(0);
 var categoriesFilters = ref([]);
@@ -281,6 +331,19 @@ const newItem = reactive({
   categoryId: "",
   status: "",
   attachmentId: "",
+});
+
+var timelineEvents = ref([{
+  id: "",
+  itemId: "",
+  event: "",
+  date: "",
+}]);
+
+const newTimeline = reactive({
+  itemId: "",
+  event: "",
+  date: "",
 });
 
 const editMode = ref(false);
@@ -320,7 +383,6 @@ const getCategories = async () => {
       type: "error",
       message: "Error fetching categories:" + error.message,
     });
-    
   }
 };
 
@@ -369,11 +431,12 @@ const addItem = async () => {
     const response = await axios.post("/api/items", newItem);
     items.value.push(response.data);
     dialogVisible.value = false;
-    this.$refs.newItemForm.resetFields(); // Reset form fields after adding
+    // this.$refs.newItemForm.resetFields(); // Reset form fields after adding
     ElMessage({
       type: "success",
       message: "添加成功",
     });
+    getItems();
   } catch (error) {
     console.error("Error adding item:", error);
     ElMessage({
@@ -411,11 +474,13 @@ const updateItem = async () => {
     if (index !== -1) {
       items.value.splice(index, 1, newItem);
     }
+    
     dialogVisible.value = false;
     ElMessage({
       type: "success",
       message: "修改成功",
     });
+    getItems();
   } catch (error) {
     console.error("Error updating item:", error);
     ElMessage({
@@ -433,6 +498,7 @@ const deleteItem = async (id) => {
       type: "success",
       message: "删除成功",
     });
+    getItems();
   } catch (error) {
     console.error("Error deleting item:", error);
     ElMessage({
@@ -473,4 +539,43 @@ const handleUploadExceed = (files, uploadFiles) => {
 const handleUploadFileRemove = (file, uploadFiles) => {
   newItem.attachmentId = null;
 };
+
+
+const addEvent = async (itemId) => {
+  try {
+    newTimeline.itemId = itemId;
+    const response = await axios.post("/api/timeline", newTimeline);
+    ElMessage({
+      type: "success",
+      message: "添加成功",
+    });
+    getItems();
+    getItemTimeline(itemId);
+  } catch (error) {
+    console.error("Error adding event:", error);
+    ElMessage({
+      type: "error",
+      message: "Error adding event:" + error.message,
+    });
+  }
+};
+
+const getItemTimeline = async(itemId) => {
+  try {
+    const response = await axios.get("/api/items/timeline/" + itemId);
+    timelineEvents.value = response.data;
+    console.log(response.data);
+    console.log(timelineEvents)
+ 
+  } catch (error) {
+    console.error("Error fetching timeline events for itemId=" + itemId + ": ", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching timeline events for itemId=" + itemId + ": " + error.message,
+    });
+  } finally{
+    newTimeline.date = "";
+    newTimeline.event = "";
+  }
+}
 </script>
