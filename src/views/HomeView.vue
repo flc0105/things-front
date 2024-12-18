@@ -41,14 +41,17 @@
         <template #default="scope">
           <el-popover
             effect="light"
-            trigger="click"
+            trigger="hover"
             placement="right"
             width="400"
             :title="scope.row.name"
-            v-if="scope.row.timelineEvents != null && scope.row.timelineEvents.length != 0"
+            v-if="
+              scope.row.timelineEvents != null &&
+              scope.row.timelineEvents.length != 0
+            "
           >
-            <div>
-              <el-timeline >
+            <div style="margin-top: 30px">
+              <el-timeline>
                 <el-timeline-item
                   v-for="(activity, index) in scope.row.timelineEvents"
                   :key="index"
@@ -64,16 +67,21 @@
           </el-popover>
         </template>
       </el-table-column>
-      <el-table-column
-        prop="ownershipDuration"
-        label="Ownership Duration"
-      ></el-table-column>
+      <el-table-column prop="ownershipDuration" label="Ownership Duration">
+        <template #default="scope">
+          <el-text
+            :style="{ color: scope.row.status === 'SOLD' ? 'gray' : '' }"
+          >
+            {{ scope.row.ownershipDuration }}
+          </el-text>
+        </template>
+      </el-table-column>
 
       <!-- 新添加的列，显示标签 -->
       <el-table-column
         label="Category"
         :filters="categoriesFilters"
-        :filter-method="filterHandler"
+        :filter-method="categoryFilterHandler"
       >
         <template #default="{ row }">
           <el-tag style="margin-right: 5px" v-if="row.category">{{
@@ -82,7 +90,11 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="Status">
+      <el-table-column
+        label="Status"
+        :filters="itemStatusFilters"
+        :filter-method="itemStatusFilterHandler"
+      >
         <template #default="{ row }">
           <el-tag
             :type="row.status === 'NORMAL' ? 'success' : 'danger'"
@@ -222,6 +234,7 @@ import { ElMessage } from "element-plus";
 
 const totalValue = ref(0);
 var categoriesFilters = ref([]);
+var itemStatusFilters = ref([]);
 
 const items = ref([]);
 const dialogVisible = ref(false);
@@ -233,12 +246,26 @@ const newItem = reactive({
   remark: "",
   categoryId: "",
   attachmentId: "",
-  // attachment: {},
 });
 
 const editMode = ref(false);
 
 const fileList = ref([]); // 文件列表
+
+const getItemStatus = async () => {
+  try {
+    const response = await axios.get(
+      "/api/dict_data/getByDictCode?dictCode=ITEM_STATUS"
+    );
+    itemStatusFilters.value = response.data.map((status) => ({
+      text: status.name,
+      value: status.name,
+      id: status.id,
+    }));
+  } catch (error) {
+    console.error("Error fetching item status:", error);
+  }
+};
 
 const getCategories = async () => {
   try {
@@ -280,7 +307,6 @@ const showAddDialog = () => {
   newItem.categoryId = "";
   newItem.remark = "";
   newItem.attachmentId = "";
-  newItem.attachment = { originalFileName: "None" };
   editMode.value = false;
   dialogVisible.value = true;
 };
@@ -305,21 +331,14 @@ const editItem = (item) => {
   newItem.remark = item.remark;
   newItem.categoryId = item.categoryId;
   newItem.attachmentId = item.attachmentId;
-  newItem.attachment = "";
-  // if (item.attachment) {
-  //   newItem.attachment = item.attachment;
-  // } else {
-  //   newItem.attachment = {"originalFileName": "None"};
-  // }
-
   editMode.value = true;
-
   dialogVisible.value = true;
 };
 
 onMounted(() => {
   getItems();
   getCategories();
+  getItemStatus();
   getTotalValue();
 });
 
@@ -345,9 +364,12 @@ const deleteItem = async (id) => {
   }
 };
 
-const filterHandler = (value, row, column) => {
-  // if (row.category)
+const categoryFilterHandler = (value, row, column) => {
   return row.category.name === value;
+};
+
+const itemStatusFilterHandler = (value, row, column) => {
+  return row.statusStr === value;
 };
 
 const handleUploadSuccess = (response, file, fileList) => {
@@ -357,8 +379,6 @@ const handleUploadSuccess = (response, file, fileList) => {
     message: "文件上传成功，文件ID：" + response.id,
   });
   newItem.attachmentId = response.id;
-  // newItem.attachment.originalFileName = response.originalFileName;
-  // }
 };
 
 const handleUploadError = (error, file, fileList) => {
@@ -368,29 +388,11 @@ const handleUploadError = (error, file, fileList) => {
   });
 };
 
-// /**
-//  * 文件数量超过限制处理函数。
-//  *
-//  * @param {array} files - 已上传的文件列表。
-//  * @param {array} uploadFiles - 待上传的文件列表。
-//  */
 const handleUploadExceed = (files, uploadFiles) => {
   ElMessage.warning(`只能上传一个附件`);
 };
 
-// /**
-//  * 文件被移除后处理函数。
-//  *
-//  * @param {object} file - 被移除的文件对象。
-//  * @param {array} uploadFiles - 剩余的文件列表。
-//  */
 const handleUploadFileRemove = (file, uploadFiles) => {
-  // console.log(file, uploadFiles);
   newItem.attachmentId = null;
-  // newItem.attachment.originalFileName = {"originalFileName": "None"};
 };
 </script>
-
-<style>
-/* Add your custom styles here */
-</style>
