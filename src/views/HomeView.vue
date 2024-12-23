@@ -81,6 +81,16 @@
         </template>
       </el-table-column>
 
+      <el-table-column prop="averageDailyPrice" label="Average Daily Price">
+        <template #default="scope">
+          <el-text
+            :style="{ color: scope.row.status === 'SOLD' ? 'gray' : '' }"
+          >
+            {{ scope.row.averageDailyPrice }}
+          </el-text>
+        </template>
+      </el-table-column>
+
       <!-- 新添加的列，显示标签 -->
       <el-table-column
         label="Category"
