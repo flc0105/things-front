@@ -295,15 +295,20 @@
             :key="index"
             :timestamp="activity.date"
           >
-            {{ activity.event }}
+            {{ activity.event }}    
+            <el-popconfirm title="确定要删除吗？" @confirm="deleteEvent(drawerItemId, activity.id)">
+            <template #reference>
+              <el-button :icon="Delete" type="danger" size="small" circle style="float:right"/>
+            </template>
+          </el-popconfirm>
+           
+
           </el-timeline-item>
         </el-timeline>
 
         <el-divider border-style="dashed" style="margin-top: 0" />
         <h4 style="margin: 0 0 30px 0">Add events</h4>
         <el-form :model="newTimeline" label-width="auto">
-
-
           <el-form-item prop="date" label="Event date">
             <el-date-picker
               v-model="newTimeline.date"
@@ -326,7 +331,8 @@
         <el-divider border-style="dashed" />
         <h4 style="margin: 0 0 30px 0">Custom fields</h4>
 
-        <el-form ref="form" :model="customFieldForm" label-width="auto">
+        <el-empty  v-if="customFields.length == 0"/>
+        <el-form v-else ref="form" :model="customFieldForm" label-width="auto">
           <div v-for="field in customFields" :key="field.id">
             <el-form-item :label="field.fieldName">
               <el-input v-model="customFieldForm[field.id]"></el-input>
@@ -354,6 +360,8 @@ import { ref, onMounted, reactive, computed } from "vue";
 import axios from "axios";
 
 import { UploadFilled } from "@element-plus/icons-vue";
+import { Delete } from '@element-plus/icons-vue'
+
 import { ElMessage } from "element-plus";
 
 const drawer = ref(false);
@@ -626,6 +634,24 @@ const addEvent = async (itemId) => {
     ElMessage({
       type: "error",
       message: "Error adding event:" + error.message,
+    });
+  }
+};
+
+const deleteEvent = async (itemId, eventId) => {
+  try {
+    await axios.delete(`/api/timeline/${eventId}`);
+    ElMessage({
+      type: "success",
+      message: "删除成功",
+    });
+    getItems();
+    getDetails(itemId);
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    ElMessage({
+      type: "error",
+      message: "Error deleting event:" + error.message,
     });
   }
 };
