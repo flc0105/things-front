@@ -1,12 +1,15 @@
 <template>
-
   <div>
+    <!-- 按钮 -->
     <el-button type="primary" @click="showAddDialog">Add Item</el-button>
     <el-button @click="getItems">Refresh</el-button>
+
+    <!-- 表格 -->
     <el-table
       :data="filterTableData"
       style="width: 100%"
       :default-sort="{ prop: 'date', order: 'descending' }"
+      show-summary
     >
       <el-table-column label="#">
         <template #default="{ $index }">
@@ -16,7 +19,13 @@
 
       <!-- <el-table-column prop="name" label="Name" title="name"></el-table-column> -->
 
-      <el-table-column prop="name" label="Name" title="name" width="300" sortable>
+      <el-table-column
+        prop="name"
+        label="Name"
+        title="name"
+        width="300"
+        sortable
+      >
         <template #default="scope">
           <el-popover
             effect="light"
@@ -39,8 +48,8 @@
 
       <el-table-column prop="price" label="Price" sortable></el-table-column>
       <el-table-column prop="purchaseDate" label="Purchase Date" sortable>
-        <template #default="scope">
-          <el-popover
+        <!-- <template #default="scope"> -->
+        <!-- <el-popover
             effect="light"
             trigger="hover"
             placement="right"
@@ -63,13 +72,21 @@
               </el-timeline>
             </div>
 
-            <el-button type="primary" @click="getItemTimeline(scope.row.id);drawer=true " size="small">Add</el-button> 
+            <el-button
+              type="primary"
+              @click="
+                getItemTimeline(scope.row.id);
+                drawer = true;
+              "
+              size="small"
+              >Add</el-button
+            > -->
 
-            <template #reference>
+        <!-- <template #reference>
               {{ scope.row.purchaseDate }}
-            </template>
-          </el-popover>
-        </template>
+            </template> -->
+        <!-- </el-popover> -->
+        <!-- </template> -->
       </el-table-column>
       <el-table-column prop="ownershipDuration" label="Ownership Duration">
         <template #default="scope">
@@ -119,7 +136,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column fixed="right" label="Operations" width="120">
+      <el-table-column fixed="right" label="Operations" width="160">
         <template #header>
           <el-input
             v-model="search"
@@ -138,12 +155,22 @@
               <el-button link type="primary" size="small">Delete</el-button>
             </template>
           </el-popconfirm>
+
+          <el-button
+            link
+            type="primary"
+            size="small"
+            @click="
+              getDetails(row.id);
+              drawer = true;
+            "
+            >Details</el-button
+          >
         </template>
       </el-table-column>
     </el-table>
 
-    <el-text> Total value: {{ totalValue }} </el-text>
-
+    <!-- 添加或修改对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="editMode ? 'Edit Item' : 'Add Item'"
@@ -256,70 +283,88 @@
       </template>
     </el-dialog>
 
+    <!-- 时间轴抽屉 -->
+    <el-drawer v-model="drawer" :direction="direction" title="Details">
+      <template #default>
+        <h4 style="margin: 0 0 30px 0">Timeline events</h4>
+
+        <el-empty  v-if="timelineEvents.length == 0"/>
+        <el-timeline v-else>
+          <el-timeline-item
+            v-for="(activity, index) in timelineEvents"
+            :key="index"
+            :timestamp="activity.date"
+          >
+            {{ activity.event }}
+          </el-timeline-item>
+        </el-timeline>
+
+        <el-divider border-style="dashed" style="margin-top: 0" />
+        <h4 style="margin: 0 0 30px 0">Add events</h4>
+        <el-form :model="newTimeline" label-width="auto">
 
 
+          <el-form-item prop="date" label="Event date">
+            <el-date-picker
+              v-model="newTimeline.date"
+              type="date"
+              placeholder="Select Date"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              style="width: 100%"
+            ></el-date-picker>
+          </el-form-item>
 
+          <el-form-item label="Event name" prop="event">
+            <el-input v-model="newTimeline.event"></el-input>
+          </el-form-item>
+          <el-button type="primary" @click="addEvent(drawerItemId)"
+            >Add</el-button
+          >
+        </el-form>
 
-  <el-drawer v-model="drawer" :direction="direction" title="Add event">
-    <template #default>
-      <el-timeline>
-                <el-timeline-item
-                  v-for="(activity, index) in timelineEvents"
-                  :key="index"
-                  :timestamp="activity.date"
-                >
-                  {{ activity.event }}
-                </el-timeline-item>
-              </el-timeline>
+        <el-divider border-style="dashed" />
+        <h4 style="margin: 0 0 30px 0">Custom fields</h4>
 
-              <el-form
-                :model="newTimeline"
-                label-width="auto"
-              >
-                <el-form-item label="Event name" prop="event">
-                  <el-input
-                    v-model="newTimeline.event"
-                  ></el-input>
-                </el-form-item>
-
-                <el-form-item prop="date" label="Event date">
-                  <el-date-picker
-                    v-model="newTimeline.date"
-                    type="date"
-                    placeholder="Select Date"
-                    format="YYYY-MM-DD"
-                    value-format="YYYY-MM-DD"
-                  ></el-date-picker>
-                </el-form-item>
-                <el-button type="primary" @click="addEvent(timelineEvents[0].itemId)">Add</el-button>
-              </el-form>
-    </template>
-    <template #footer>
-      <div style="flex: auto">
-        <el-button type="primary" @click="drawer=false">Confirm</el-button>
-      </div>
-    </template>
-  </el-drawer>
-
+        <el-form ref="form" :model="customFieldForm" label-width="auto">
+          <div v-for="field in customFields" :key="field.id">
+            <el-form-item :label="field.fieldName">
+              <el-input v-model="customFieldForm[field.id]"></el-input>
+            </el-form-item>
+          </div>
+          <el-button
+            type="primary"
+            @click="saveCustomFields(drawerItemId)"
+            >Save</el-button
+          >
+        </el-form>
+      </template>
+      <template #footer>
+        <div style="flex: auto">
+          <el-button type="primary" @click="drawer = false">Confirm</el-button>
+        </div>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script lang="ts" setup>
-
-import type { DrawerProps } from 'element-plus';
+import type { DrawerProps } from "element-plus";
 import { ref, onMounted, reactive, computed } from "vue";
 import axios from "axios";
 
 import { UploadFilled } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 
+const drawer = ref(false);
+const direction = ref<DrawerProps["direction"]>("rtl");
 
-const drawer = ref(false)
-const direction = ref<DrawerProps['direction']>('rtl')
-
-const totalValue = ref(0);
+// const totalValue = ref(0);
 var categoriesFilters = ref([]);
 var itemStatusFilters = ref([]);
+var customFields = ref([]);
+var customFieldForm = ref({});
+var drawerItemId = ref();
 
 const search = ref("");
 const filterTableData = computed(() =>
@@ -343,12 +388,14 @@ const newItem = reactive({
   attachmentId: "",
 });
 
-var timelineEvents = ref([{
-  id: "",
-  itemId: "",
-  event: "",
-  date: "",
-}]);
+var timelineEvents = ref([
+  {
+    id: "",
+    itemId: "",
+    event: "",
+    date: "",
+  },
+]);
 
 const newTimeline = reactive({
   itemId: "",
@@ -375,6 +422,19 @@ const getItemStatus = async () => {
     ElMessage({
       type: "error",
       message: "Error fetching item status:" + error.message,
+    });
+  }
+};
+
+const getCustomFields = async () => {
+  try {
+    const response = await axios.get("/api/custom_fields");
+    customFields.value = response.data;
+  } catch (error) {
+    console.error("Error fetching custom fields:", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching custom fields:" + error.message,
     });
   }
 };
@@ -409,18 +469,18 @@ const getItems = async () => {
   }
 };
 
-const getTotalValue = async () => {
-  try {
-    const response = await axios.get("/api/items/total-value");
-    totalValue.value = response.data;
-  } catch (error) {
-    console.error("Error fetching items total value:", error);
-    ElMessage({
-      type: "error",
-      message: "Error fetching items total value:" + error.message,
-    });
-  }
-};
+// const getTotalValue = async () => {
+//   try {
+//     const response = await axios.get("/api/items/total-value");
+//     totalValue.value = response.data;
+//   } catch (error) {
+//     console.error("Error fetching items total value:", error);
+//     ElMessage({
+//       type: "error",
+//       message: "Error fetching items total value:" + error.message,
+//     });
+//   }
+// };
 
 const showAddDialog = () => {
   fileList.value.length = 0;
@@ -474,7 +534,8 @@ onMounted(() => {
   getItems();
   getCategories();
   getItemStatus();
-  getTotalValue();
+  getCustomFields();
+  // getTotalValue();
 });
 
 const updateItem = async () => {
@@ -484,7 +545,7 @@ const updateItem = async () => {
     if (index !== -1) {
       items.value.splice(index, 1, newItem);
     }
-    
+
     dialogVisible.value = false;
     ElMessage({
       type: "success",
@@ -550,7 +611,6 @@ const handleUploadFileRemove = (file, uploadFiles) => {
   newItem.attachmentId = null;
 };
 
-
 const addEvent = async (itemId) => {
   try {
     newTimeline.itemId = itemId;
@@ -560,7 +620,7 @@ const addEvent = async (itemId) => {
       message: "添加成功",
     });
     getItems();
-    getItemTimeline(itemId);
+    getDetails(itemId);
   } catch (error) {
     console.error("Error adding event:", error);
     ElMessage({
@@ -570,22 +630,81 @@ const addEvent = async (itemId) => {
   }
 };
 
-const getItemTimeline = async(itemId) => {
+const getDetails = async (itemId) => {
+  drawerItemId = itemId;
   try {
     const response = await axios.get("/api/items/timeline/" + itemId);
     timelineEvents.value = response.data;
-    console.log(response.data);
-    console.log(timelineEvents)
- 
   } catch (error) {
-    console.error("Error fetching timeline events for itemId=" + itemId + ": ", error);
+    console.error(
+      "Error fetching timeline events for itemId=" + itemId + ": ",
+      error
+    );
     ElMessage({
       type: "error",
-      message: "Error fetching timeline events for itemId=" + itemId + ": " + error.message,
+      message:
+        "Error fetching timeline events for itemId=" +
+        itemId +
+        ": " +
+        error.message,
     });
-  } finally{
+  } finally {
     newTimeline.date = "";
     newTimeline.event = "";
   }
-}
+
+  try {
+    const response = await axios.get("/api/items/customFields/" + itemId);
+    customFieldForm.value = response.data.reduce((acc, field) => {
+      acc[field.customFieldId] = field.value; // 使用方括号来设置动态的属性名
+      return acc;
+    }, {});
+  } catch (error) {
+    console.error(
+      "Error fetching custom fields for itemId=" + itemId + ": ",
+      error
+    );
+    ElMessage({
+      type: "error",
+      message:
+        "Error fetching custom fields for itemId=" +
+        itemId +
+        ": " +
+        error.message,
+    });
+  } finally {
+    newTimeline.date = "";
+    newTimeline.event = "";
+  }
+};
+
+const saveCustomFields = async (itemId) => {
+  // console.log(customFieldForm);
+  try {
+    const itemCustomFieldValues = Object.keys(customFieldForm.value).map(
+      (customFieldId) => ({
+        itemId: itemId,
+        customFieldId: customFieldId,
+        value: customFieldForm.value[customFieldId],
+      })
+    );
+
+    const response = await axios.post(
+      "/api/items/customFields/",
+      itemCustomFieldValues
+    );
+
+    ElMessage({
+      type: "success",
+      message: "修改自定义信息成功：" + response.data,
+    });
+    getItems();
+  } catch (error) {
+    console.error("Error saving custom fields:", error);
+    ElMessage({
+      type: "error",
+      message: "Error saving custom fields:" + error.message,
+    });
+  }
+};
 </script>
