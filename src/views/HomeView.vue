@@ -345,17 +345,41 @@
         <el-divider border-style="dashed" />
         <h4 style="margin: 0 0 30px 0">Custom fields</h4>
 
-        <el-empty v-if="customFields.length == 0" />
-        <el-form v-else ref="form" :model="customFieldForm" label-width="auto">
+        <el-form
+          v-if="customFields.values"
+          ref="form"
+          :model="customFieldForm"
+          label-width="auto"
+        >
           <div v-for="field in customFields" :key="field.id">
             <el-form-item :label="field.fieldName">
-              <el-input v-model="customFieldForm[field.id]"></el-input>
+              <el-select
+                v-if="field.fieldType == 'DATA_DICT'"
+                v-model="customFieldForm[field.id]"
+              >
+                <el-option
+                  v-for="opt in dictOptions[field.formula]"
+                  :key="opt.code"
+                  :label="opt.name"
+                  :value="opt.code"
+                />
+              </el-select>
+
+              <el-input
+                v-else
+                v-model="customFieldForm[field.id]"
+                :disabled="field.fieldType == 'CODE'"
+              ></el-input>
             </el-form-item>
           </div>
           <el-button type="primary" @click="saveCustomFields(drawerItemId)"
             >Save</el-button
           >
+          <el-button type="primary" @click="customFieldsDialogVisible = true"
+            >Add field</el-button
+          >
         </el-form>
+        <el-empty v-else />
       </template>
       <template #footer>
         <div style="flex: auto">
@@ -363,6 +387,84 @@
         </div>
       </template>
     </el-drawer>
+
+    <el-dialog v-model="customFieldsDialogVisible" title="Custom fields">
+      <el-table :data="customFields">
+        <el-table-column property="id" label="ID" />
+        <el-table-column property="fieldName" label="Name" />
+        <el-table-column property="fieldType" label="Type" >
+          <template #default="{ row }">
+          {{dictOptions['CUSTOM_FIELD_TYPE'].find((option) => option.code === row.fieldType).name}}
+        </template>
+        </el-table-column>
+        <el-table-column fixed="right" label="Operations">
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="editCustomField(row)"
+              >Edit</el-button
+            >
+            <el-popconfirm
+              title="确定要删除吗？"
+              @confirm="deleteCustomField(row.id)"
+            >
+              <template #reference>
+                <el-button link type="primary" size="small">Delete</el-button>
+              </template>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-button
+        class="mt-4"
+        style="width: 100%; margin-top: 10px"
+        @click="addCustomFieldDialogVisible = true"
+      >
+        Add Field
+      </el-button>
+    </el-dialog>
+
+    <el-dialog
+      v-model="addCustomFieldDialogVisible"
+      title="Add custom field"
+      width="500"
+    >
+      <el-form :model="newCustomFieldForm">
+        <el-form-item label="Field name">
+          <el-input v-model="newCustomFieldForm.name" autocomplete="off" />
+        </el-form-item>
+        <el-form-item label="Field type">
+          <el-select v-model="newCustomFieldForm.type">
+
+            <el-option
+                  v-for="opt in dictOptions['CUSTOM_FIELD_TYPE']"
+                  :key="opt.code"
+                  :label="opt.name"
+                  :value="opt.code"
+                />
+            <!-- <el-option label="Text" value="text" />
+            <el-option label="Number" value="number" />
+            <el-option label="Data dict" value="dataDict" />
+            <el-option label="Code" value="code" /> -->
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="addCustomFieldDialogVisible = false"
+            >Cancel</el-button
+          >
+          <el-button
+            type="primary"
+            @click="addCustomFieldDialogVisible = false"
+          >
+            Confirm
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -383,6 +485,7 @@ var categoriesFilters = ref([]);
 var itemStatusFilters = ref([]);
 var customFields = ref([]);
 var customFieldForm = ref({});
+
 var drawerItemId = ref();
 
 const search = ref("");
@@ -396,6 +499,10 @@ const filterTableData = computed(() =>
 
 const items = ref([]);
 const dialogVisible = ref(false);
+
+const customFieldsDialogVisible = ref(false);
+const addCustomFieldDialogVisible = ref(false);
+
 const newItem = reactive({
   id: "",
   name: "",
@@ -416,6 +523,10 @@ var timelineEvents = ref([
     date: "",
   },
 ]);
+
+var newCustomFieldForm = reactive({
+  name: "",
+});
 
 const newTimeline = reactive({
   itemId: "",
@@ -450,6 +561,7 @@ const getCustomFields = async () => {
   try {
     const response = await axios.get("/api/custom_fields");
     customFields.value = response.data;
+    console.log(customFields);
   } catch (error) {
     console.error("Error fetching custom fields:", error);
     ElMessage({
@@ -547,6 +659,8 @@ onMounted(() => {
   getCategories();
   getItemStatus();
   getCustomFields();
+
+  loadCustomFields();
   // getTotalValue();
 });
 
@@ -753,5 +867,63 @@ const saveCustomFields = async (itemId) => {
       message: "Error saving custom fields:" + error.message,
     });
   }
+};
+
+const dictOptions = reactive({});
+
+// const getDictOptions = async (dictCode) => {
+//   try {
+//     const response = await axios.get(
+//       "/api/dict_data/getByDictCode?dictCode=" + dictCode
+//     );
+//     var options = response.data.map((status) => ({
+//       text: status.name,
+//       value: status.code,
+//       id: status.id,
+//     }));
+//     return options;
+//   } catch (error) {
+//     console.error("Error fetching dict options:", error);
+//     ElMessage({
+//       type: "error",
+//       message: "Error fetching dict options:" + error.message,
+//     });
+//   }
+// }
+
+const fetchDictOptions = async () => {
+  try {
+    const response = await axios.get("/api/dict_data");
+    var data = response.data;
+
+    // 遍历数据并将 items 列表按 dictCode 分类
+    data.forEach((item) => {
+      if (item.dictCode) {
+        // 如果当前 dictCode 不存在，则初始化为一个空数组
+        if (!dictOptions[item.dictCode]) {
+          dictOptions[item.dictCode] = [];
+        }
+        // 将当前 item 添加到对应的 dictCode 列表中
+        dictOptions[item.dictCode].push(item);
+      }
+    });
+    console.log(dictOptions);
+    console.log(dictOptions["ITEM_STATUS"]);
+
+    // dictOptions[fieldId] = response.data.map((status) => ({
+    //   text: status.name,
+    //   value: status.code,
+    // }));
+  } catch (error) {
+    console.error("Error fetching dict options:", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching dict options: " + error.message,
+    });
+  }
+};
+
+const loadCustomFields = async () => {
+  await fetchDictOptions();
 };
 </script>
