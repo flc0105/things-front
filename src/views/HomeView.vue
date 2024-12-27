@@ -48,8 +48,8 @@
 
       <el-table-column prop="price" label="Price" sortable></el-table-column>
       <el-table-column prop="purchaseDate" label="Purchase Date" sortable>
-        <!-- <template #default="scope"> -->
-        <!-- <el-popover
+        <template #default="scope">
+          <el-popover
             effect="light"
             trigger="hover"
             placement="right"
@@ -71,22 +71,11 @@
                 </el-timeline-item>
               </el-timeline>
             </div>
-
-            <el-button
-              type="primary"
-              @click="
-                getItemTimeline(scope.row.id);
-                drawer = true;
-              "
-              size="small"
-              >Add</el-button
-            > -->
-
-        <!-- <template #reference>
+            <template #reference>
               {{ scope.row.purchaseDate }}
-            </template> -->
-        <!-- </el-popover> -->
-        <!-- </template> -->
+            </template>
+          </el-popover>
+        </template>
       </el-table-column>
       <el-table-column prop="ownershipDuration" label="Ownership Duration">
         <template #default="scope">
@@ -262,8 +251,26 @@
                   :href="
                     '/api/attachments/' + newItem.attachmentId + '/download'
                   "
-                  >{{ "Selected file:" + newItem.attachmentId }}</el-link
                 >
+                  <!-- {{ "Selected file:" + newItem.attachmentId }} -->
+                  {{ "Selected file:" + newItem.attachmentName }}
+                </el-link>
+
+                <el-popconfirm
+                  title="会同步删除服务器上的文件，确定要删除吗？"
+                  @confirm="deleteAttachment(newItem.attachmentId)"
+                >
+                  <template #reference>
+                    <el-button
+                      :icon="Delete"
+                      type="danger"
+                      size="small"
+                      style="margin-left: 8px"
+                      circle
+                      v-if="newItem.attachmentId"
+                    />
+                  </template>
+                </el-popconfirm>
               </div>
             </template>
           </el-upload>
@@ -288,21 +295,28 @@
       <template #default>
         <h4 style="margin: 0 0 30px 0">Timeline events</h4>
 
-        <el-empty  v-if="timelineEvents.length == 0"/>
+        <el-empty v-if="timelineEvents.length == 0" />
         <el-timeline v-else>
           <el-timeline-item
             v-for="(activity, index) in timelineEvents"
             :key="index"
             :timestamp="activity.date"
           >
-            {{ activity.event }}    
-            <el-popconfirm title="确定要删除吗？" @confirm="deleteEvent(drawerItemId, activity.id)">
-            <template #reference>
-              <el-button :icon="Delete" type="danger" size="small" circle style="float:right"/>
-            </template>
-          </el-popconfirm>
-           
-
+            {{ activity.event }}
+            <el-popconfirm
+              title="确定要删除吗？"
+              @confirm="deleteEvent(drawerItemId, activity.id)"
+            >
+              <template #reference>
+                <el-button
+                  :icon="Delete"
+                  type="danger"
+                  size="small"
+                  circle
+                  style="float: right"
+                />
+              </template>
+            </el-popconfirm>
           </el-timeline-item>
         </el-timeline>
 
@@ -331,16 +345,14 @@
         <el-divider border-style="dashed" />
         <h4 style="margin: 0 0 30px 0">Custom fields</h4>
 
-        <el-empty  v-if="customFields.length == 0"/>
+        <el-empty v-if="customFields.length == 0" />
         <el-form v-else ref="form" :model="customFieldForm" label-width="auto">
           <div v-for="field in customFields" :key="field.id">
             <el-form-item :label="field.fieldName">
               <el-input v-model="customFieldForm[field.id]"></el-input>
             </el-form-item>
           </div>
-          <el-button
-            type="primary"
-            @click="saveCustomFields(drawerItemId)"
+          <el-button type="primary" @click="saveCustomFields(drawerItemId)"
             >Save</el-button
           >
         </el-form>
@@ -360,14 +372,13 @@ import { ref, onMounted, reactive, computed } from "vue";
 import axios from "axios";
 
 import { UploadFilled } from "@element-plus/icons-vue";
-import { Delete } from '@element-plus/icons-vue'
+import { Delete } from "@element-plus/icons-vue";
 
 import { ElMessage } from "element-plus";
 
 const drawer = ref(false);
 const direction = ref<DrawerProps["direction"]>("rtl");
 
-// const totalValue = ref(0);
 var categoriesFilters = ref([]);
 var itemStatusFilters = ref([]);
 var customFields = ref([]);
@@ -394,6 +405,7 @@ const newItem = reactive({
   categoryId: "",
   status: "",
   attachmentId: "",
+  attachmentName: "",
 });
 
 var timelineEvents = ref([
@@ -477,19 +489,6 @@ const getItems = async () => {
   }
 };
 
-// const getTotalValue = async () => {
-//   try {
-//     const response = await axios.get("/api/items/total-value");
-//     totalValue.value = response.data;
-//   } catch (error) {
-//     console.error("Error fetching items total value:", error);
-//     ElMessage({
-//       type: "error",
-//       message: "Error fetching items total value:" + error.message,
-//     });
-//   }
-// };
-
 const showAddDialog = () => {
   fileList.value.length = 0;
   newItem.id = "";
@@ -500,6 +499,7 @@ const showAddDialog = () => {
   newItem.status = "NORMAL";
   newItem.remark = "";
   newItem.attachmentId = "";
+  newItem.attachmentName = "";
   editMode.value = false;
   dialogVisible.value = true;
 };
@@ -534,6 +534,10 @@ const editItem = (item) => {
   newItem.categoryId = item.categoryId;
   newItem.status = item.status;
   newItem.attachmentId = item.attachmentId;
+  if (item.attachment) {
+    newItem.attachmentName = item.attachment.originalFileName;
+  }
+
   editMode.value = true;
   dialogVisible.value = true;
 };
@@ -599,15 +603,16 @@ const handleUploadSuccess = (response, file, fileList) => {
   // if (response.success) {
   ElMessage({
     type: "success",
-    message: "文件上传成功，文件ID：" + response.id,
+    message: "File uploaded successfully",
   });
   newItem.attachmentId = response.id;
+  newItem.attachmentName = response.originalFileName;
 };
 
 const handleUploadError = (error, file, fileList) => {
   ElMessage({
     type: "error",
-    message: "文件上传失败：" + error.message, //JSON.parse(error.message).message,
+    message: "Failed to upload file: " + error.message, //JSON.parse(error.message).message,
   });
 };
 
@@ -616,7 +621,7 @@ const handleUploadExceed = (files, uploadFiles) => {
 };
 
 const handleUploadFileRemove = (file, uploadFiles) => {
-  newItem.attachmentId = null;
+  // newItem.attachmentId = null;
 };
 
 const addEvent = async (itemId) => {
@@ -625,7 +630,7 @@ const addEvent = async (itemId) => {
     const response = await axios.post("/api/timeline", newTimeline);
     ElMessage({
       type: "success",
-      message: "添加成功",
+      message: "Event added successfully",
     });
     getItems();
     getDetails(itemId);
@@ -643,7 +648,7 @@ const deleteEvent = async (itemId, eventId) => {
     await axios.delete(`/api/timeline/${eventId}`);
     ElMessage({
       type: "success",
-      message: "删除成功",
+      message: "Event deleted successfully",
     });
     getItems();
     getDetails(itemId);
@@ -652,6 +657,23 @@ const deleteEvent = async (itemId, eventId) => {
     ElMessage({
       type: "error",
       message: "Error deleting event:" + error.message,
+    });
+  }
+};
+
+const deleteAttachment = async (attachmentId) => {
+  newItem.attachmentId = null;
+  try {
+    await axios.delete(`/api/attachments/${attachmentId}`);
+    ElMessage({
+      type: "success",
+      message: "Attachment deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting attachment:", error);
+    ElMessage({
+      type: "error",
+      message: "Error deleting attachment:" + error.message,
     });
   }
 };
@@ -705,7 +727,6 @@ const getDetails = async (itemId) => {
 };
 
 const saveCustomFields = async (itemId) => {
-  // console.log(customFieldForm);
   try {
     const itemCustomFieldValues = Object.keys(customFieldForm.value).map(
       (customFieldId) => ({
@@ -722,7 +743,7 @@ const saveCustomFields = async (itemId) => {
 
     ElMessage({
       type: "success",
-      message: "修改自定义信息成功：" + response.data,
+      message: "Custom fields saved successfully",
     });
     getItems();
   } catch (error) {
