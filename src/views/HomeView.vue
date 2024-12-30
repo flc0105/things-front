@@ -392,10 +392,14 @@
       <el-table :data="customFields">
         <el-table-column property="id" label="ID" />
         <el-table-column property="fieldName" label="Name" />
-        <el-table-column property="fieldType" label="Type" >
+        <el-table-column property="fieldType" label="Type">
           <template #default="{ row }">
-          {{dictOptions['CUSTOM_FIELD_TYPE'].find((option) => option.code === row.fieldType).name}}
-        </template>
+            {{
+              dictOptions["CUSTOM_FIELD_TYPE"].find(
+                (option) => option.code === row.fieldType
+              ).name
+            }}
+          </template>
         </el-table-column>
         <el-table-column fixed="right" label="Operations">
           <template #default="{ row }">
@@ -403,7 +407,7 @@
               link
               type="primary"
               size="small"
-              @click="editCustomField(row)"
+              @click="customFieldEditMode=true;addCustomFieldDialogVisible = true; newCustomFieldForm.id = row.id; newCustomFieldForm.fieldName=row.fieldName; newCustomFieldForm.fieldType=row.fieldType; newCustomFieldForm.formula=row.formula;"
               >Edit</el-button
             >
             <el-popconfirm
@@ -420,7 +424,7 @@
       <el-button
         class="mt-4"
         style="width: 100%; margin-top: 10px"
-        @click="addCustomFieldDialogVisible = true"
+        @click="customFieldEditMode=false; addCustomFieldDialogVisible = true; newCustomFieldForm.fieldName=''; newCustomFieldForm.fieldType=''; newCustomFieldForm.formula='';"
       >
         Add Field
       </el-button>
@@ -428,27 +432,45 @@
 
     <el-dialog
       v-model="addCustomFieldDialogVisible"
-      title="Add custom field"
+      :title="customFieldEditMode ? 'Edit custom field' : 'Add custom field'"
       width="500"
     >
-      <el-form :model="newCustomFieldForm">
+      <el-form :model="newCustomFieldForm" label-width="auto">
         <el-form-item label="Field name">
-          <el-input v-model="newCustomFieldForm.name" autocomplete="off" />
+          <el-input v-model="newCustomFieldForm.fieldName" autocomplete="off" />
         </el-form-item>
         <el-form-item label="Field type">
-          <el-select v-model="newCustomFieldForm.type">
-
+          <el-select v-model="newCustomFieldForm.fieldType">
             <el-option
-                  v-for="opt in dictOptions['CUSTOM_FIELD_TYPE']"
-                  :key="opt.code"
-                  :label="opt.name"
-                  :value="opt.code"
-                />
-            <!-- <el-option label="Text" value="text" />
-            <el-option label="Number" value="number" />
-            <el-option label="Data dict" value="dataDict" />
-            <el-option label="Code" value="code" /> -->
+              v-for="opt in dictOptions['CUSTOM_FIELD_TYPE']"
+              :key="opt.code"
+              :label="opt.name"
+              :value="opt.code"
+            />
           </el-select>
+        </el-form-item>
+        <!-- 当字段类型为 Data_dict 时显示的下拉列表 -->
+        <el-form-item
+          v-if="newCustomFieldForm.fieldType === 'DATA_DICT'"
+          label="Dictionary"
+        >
+          <el-select v-model="newCustomFieldForm.formula">
+            <el-option
+              v-for="opt in dictKeys"
+              :key="opt"
+              :label="opt"
+              :value="opt"
+            />
+          </el-select>
+        </el-form-item>
+        <!-- 当字段类型为 Code 时显示的文本域 -->
+        <el-form-item v-if="newCustomFieldForm.fieldType === 'CODE'" label="Code">
+          <el-input
+            v-model="newCustomFieldForm.formula"
+            type="textarea"
+            :rows="4"
+            placeholder="Enter JavaScript code"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -456,11 +478,18 @@
           <el-button @click="addCustomFieldDialogVisible = false"
             >Cancel</el-button
           >
-          <el-button
+          <!-- <el-button
             type="primary"
-            @click="addCustomFieldDialogVisible = false"
+            @click="addCustomFieldDialogVisible = false; addCustomField()"
           >
             Confirm
+          </el-button> -->
+
+          <el-button
+            type="primary"
+            @click="addCustomFieldDialogVisible = false; customFieldEditMode ? updateCustomField() : addCustomField()"
+          >
+            {{ customFieldEditMode ? "Update" : "Add" }}
           </el-button>
         </div>
       </template>
@@ -480,6 +509,8 @@ import { ElMessage } from "element-plus";
 
 const drawer = ref(false);
 const direction = ref<DrawerProps["direction"]>("rtl");
+
+const dictKeys = computed(() => Object.keys(dictOptions));
 
 var categoriesFilters = ref([]);
 var itemStatusFilters = ref([]);
@@ -525,7 +556,10 @@ var timelineEvents = ref([
 ]);
 
 var newCustomFieldForm = reactive({
-  name: "",
+  id: "",
+  fieldName: "",
+  fieldType: "",
+  formula: ""
 });
 
 const newTimeline = reactive({
@@ -535,6 +569,8 @@ const newTimeline = reactive({
 });
 
 const editMode = ref(false);
+
+const customFieldEditMode = ref(false);
 
 const fileList = ref([]); // 文件列表
 
@@ -907,6 +943,7 @@ const fetchDictOptions = async () => {
         dictOptions[item.dictCode].push(item);
       }
     });
+    console.log("dictOptions=");
     console.log(dictOptions);
     console.log(dictOptions["ITEM_STATUS"]);
 
@@ -926,4 +963,69 @@ const fetchDictOptions = async () => {
 const loadCustomFields = async () => {
   await fetchDictOptions();
 };
+
+
+
+const addCustomField = async () => {
+  try {
+  
+    const response = await axios.post(
+      "/api/custom_fields",
+      newCustomFieldForm
+    );
+
+    ElMessage({
+      type: "success",
+      message: "Custom fields added successfully",
+    });
+    getItems();
+    getCustomFields();
+
+  } catch (error) {
+    console.error("Error adding custom field:", error);
+    ElMessage({
+      type: "error",
+      message: "Error adding custom field:" + error.message,
+    });
+  }
+};
+
+
+const deleteCustomField = async (customFieldId) => {
+  try {
+    await axios.delete(`/api/custom_fields/${customFieldId}`);
+    ElMessage({
+      type: "success",
+      message: "Custom field deleted successfully",
+    });
+    getCustomFields();
+  } catch (error) {
+    console.error("Error deleting custom fields:", error);
+    ElMessage({
+      type: "error",
+      message: "Error deleting custom fields:" + error.message,
+    });
+  }
+};
+
+
+
+const updateCustomField = async () => {
+  try {
+    await axios.put(`/api/custom_fields/${newCustomFieldForm.id}`, newCustomFieldForm);
+    ElMessage({
+      type: "success",
+      message: "修改成功",
+    });
+    getItems();
+    getCustomFields();
+  } catch (error) {
+    console.error("Error updating custom_fields:", error);
+    ElMessage({
+      type: "error",
+      message: "Error updating custom_fields:" + error.message,
+    });
+  }
+};
+
 </script>
