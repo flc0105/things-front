@@ -424,7 +424,7 @@
       <el-button
         class="mt-4"
         style="width: 100%; margin-top: 10px"
-        @click="customFieldEditMode=false; addCustomFieldDialogVisible = true; newCustomFieldForm.fieldName=''; newCustomFieldForm.fieldType=''; newCustomFieldForm.formula='';"
+        @click="customFieldEditMode=false; addCustomFieldDialogVisible = true; newCustomFieldForm.id=''; newCustomFieldForm.fieldName=''; newCustomFieldForm.fieldType=''; newCustomFieldForm.formula='';"
       >
         Add Field
       </el-button>
@@ -510,7 +510,7 @@ import { ElMessage } from "element-plus";
 const drawer = ref(false);
 const direction = ref<DrawerProps["direction"]>("rtl");
 
-const dictKeys = computed(() => Object.keys(dictOptions));
+
 
 var categoriesFilters = ref([]);
 var itemStatusFilters = ref([]);
@@ -690,15 +690,7 @@ const editItem = (item) => {
   dialogVisible.value = true;
 };
 
-onMounted(() => {
-  getItems();
-  getCategories();
-  getItemStatus();
-  getCustomFields();
 
-  loadCustomFields();
-  // getTotalValue();
-});
 
 const updateItem = async () => {
   try {
@@ -771,7 +763,6 @@ const handleUploadExceed = (files, uploadFiles) => {
 };
 
 const handleUploadFileRemove = (file, uploadFiles) => {
-  // newItem.attachmentId = null;
 };
 
 const addEvent = async (itemId) => {
@@ -828,6 +819,10 @@ const deleteAttachment = async (attachmentId) => {
   }
 };
 
+/**
+ * 获取物品详细信息（获取时间轴信息和自定义字段）
+ * @param itemId 物品id
+ */
 const getDetails = async (itemId) => {
   drawerItemId = itemId;
   try {
@@ -876,7 +871,45 @@ const getDetails = async (itemId) => {
   }
 };
 
-const saveCustomFields = async (itemId) => {
+
+
+const dictOptions = reactive({}); // key为数据字典名称，value为数据字典选项列表
+const dictKeys = computed(() => Object.keys(dictOptions)); // 数据字典名称列表
+
+/**
+ * 获取数据字典的选项（对象，key为数据字典名称，value为数据字典选项列表）
+ */
+const fetchDictOptions = async () => {
+  try {
+    const response = await axios.get("/api/dict_data");
+    var data = response.data;
+
+    // 遍历数据并将 items 列表按 dictCode 分类
+    data.forEach((item) => {
+      if (item.dictCode) {
+        // 如果当前 dictCode 不存在，则初始化为一个空数组
+        if (!dictOptions[item.dictCode]) {
+          dictOptions[item.dictCode] = [];
+        }
+        // 将当前 item 添加到对应的 dictCode 列表中
+        dictOptions[item.dictCode].push(item);
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching dict options:", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching dict options: " + error.message,
+    });
+  }
+};
+
+
+/**
+ * 保存物品自定义字段
+ * @param itemId 物品id
+ */
+ const saveCustomFields = async (itemId) => {
   try {
     const itemCustomFieldValues = Object.keys(customFieldForm.value).map(
       (customFieldId) => ({
@@ -905,67 +938,9 @@ const saveCustomFields = async (itemId) => {
   }
 };
 
-const dictOptions = reactive({});
-
-// const getDictOptions = async (dictCode) => {
-//   try {
-//     const response = await axios.get(
-//       "/api/dict_data/getByDictCode?dictCode=" + dictCode
-//     );
-//     var options = response.data.map((status) => ({
-//       text: status.name,
-//       value: status.code,
-//       id: status.id,
-//     }));
-//     return options;
-//   } catch (error) {
-//     console.error("Error fetching dict options:", error);
-//     ElMessage({
-//       type: "error",
-//       message: "Error fetching dict options:" + error.message,
-//     });
-//   }
-// }
-
-const fetchDictOptions = async () => {
-  try {
-    const response = await axios.get("/api/dict_data");
-    var data = response.data;
-
-    // 遍历数据并将 items 列表按 dictCode 分类
-    data.forEach((item) => {
-      if (item.dictCode) {
-        // 如果当前 dictCode 不存在，则初始化为一个空数组
-        if (!dictOptions[item.dictCode]) {
-          dictOptions[item.dictCode] = [];
-        }
-        // 将当前 item 添加到对应的 dictCode 列表中
-        dictOptions[item.dictCode].push(item);
-      }
-    });
-    console.log("dictOptions=");
-    console.log(dictOptions);
-    console.log(dictOptions["ITEM_STATUS"]);
-
-    // dictOptions[fieldId] = response.data.map((status) => ({
-    //   text: status.name,
-    //   value: status.code,
-    // }));
-  } catch (error) {
-    console.error("Error fetching dict options:", error);
-    ElMessage({
-      type: "error",
-      message: "Error fetching dict options: " + error.message,
-    });
-  }
-};
-
-const loadCustomFields = async () => {
-  await fetchDictOptions();
-};
-
-
-
+/**
+ * 添加自定义字段
+ */
 const addCustomField = async () => {
   try {
   
@@ -991,6 +966,10 @@ const addCustomField = async () => {
 };
 
 
+/**
+ * 删除自定义字段
+ * @param customFieldId 自定义字段id
+ */
 const deleteCustomField = async (customFieldId) => {
   try {
     await axios.delete(`/api/custom_fields/${customFieldId}`);
@@ -1009,23 +988,32 @@ const deleteCustomField = async (customFieldId) => {
 };
 
 
-
+/**
+ * 修改自定义字段
+ */
 const updateCustomField = async () => {
   try {
     await axios.put(`/api/custom_fields/${newCustomFieldForm.id}`, newCustomFieldForm);
     ElMessage({
       type: "success",
-      message: "修改成功",
+      message: "Custom field updated successfully",
     });
-    getItems();
     getCustomFields();
   } catch (error) {
-    console.error("Error updating custom_fields:", error);
+    console.error("Error updating custom fields:", error);
     ElMessage({
       type: "error",
-      message: "Error updating custom_fields:" + error.message,
+      message: "Error updating custom fields:" + error.message,
     });
   }
 };
+
+onMounted(() => {
+  getItems();
+  getCategories();
+  getItemStatus();
+  getCustomFields();
+  fetchDictOptions();
+});
 
 </script>
