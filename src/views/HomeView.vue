@@ -87,7 +87,11 @@
         </template>
       </el-table-column>
 
-      <el-table-column prop="averageDailyPrice" label="Average Daily Price">
+      <el-table-column
+        prop="averageDailyPrice"
+        label="Average Daily Price"
+        sortable
+      >
         <template #default="scope">
           <el-text
             :style="{ color: scope.row.status === 'SOLD' ? 'gray' : '' }"
@@ -345,13 +349,13 @@
         <el-divider border-style="dashed" />
         <h4 style="margin: 0 0 30px 0">Custom fields</h4>
 
+        <!-- v-if="enabledCustomFields.values.length!=0"-->
         <el-form
-          v-if="customFields.values"
           ref="form"
           :model="customFieldForm"
           label-width="auto"
         >
-          <div v-for="field in customFields" :key="field.id">
+          <div v-for="field in enabledCustomFields" :key="field.id">
             <el-form-item :label="field.fieldName">
               <el-select
                 v-if="field.fieldType == 'DATA_DICT'"
@@ -379,7 +383,7 @@
             >Add field</el-button
           >
         </el-form>
-        <el-empty v-else />
+        <!-- <el-empty v-else /> -->
       </template>
       <template #footer>
         <div style="flex: auto">
@@ -407,7 +411,22 @@
               link
               type="primary"
               size="small"
-              @click="customFieldEditMode=true;addCustomFieldDialogVisible = true; newCustomFieldForm.id = row.id; newCustomFieldForm.fieldName=row.fieldName; newCustomFieldForm.fieldType=row.fieldType; newCustomFieldForm.formula=row.formula;"
+              @click="setCustomFieldEnabled(row.id, !row.enabled)"
+              >{{ row.enabled ? "Disable" : "Enable" }}</el-button
+            >
+
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="
+                customFieldEditMode = true;
+                addCustomFieldDialogVisible = true;
+                newCustomFieldForm.id = row.id;
+                newCustomFieldForm.fieldName = row.fieldName;
+                newCustomFieldForm.fieldType = row.fieldType;
+                newCustomFieldForm.formula = row.formula;
+              "
               >Edit</el-button
             >
             <el-popconfirm
@@ -424,7 +443,14 @@
       <el-button
         class="mt-4"
         style="width: 100%; margin-top: 10px"
-        @click="customFieldEditMode=false; addCustomFieldDialogVisible = true; newCustomFieldForm.id=''; newCustomFieldForm.fieldName=''; newCustomFieldForm.fieldType=''; newCustomFieldForm.formula='';"
+        @click="
+          customFieldEditMode = false;
+          addCustomFieldDialogVisible = true;
+          newCustomFieldForm.id = '';
+          newCustomFieldForm.fieldName = '';
+          newCustomFieldForm.fieldType = '';
+          newCustomFieldForm.formula = '';
+        "
       >
         Add Field
       </el-button>
@@ -464,13 +490,48 @@
           </el-select>
         </el-form-item>
         <!-- 当字段类型为 Code 时显示的文本域 -->
-        <el-form-item v-if="newCustomFieldForm.fieldType === 'CODE'" label="Code">
+        <el-form-item
+          v-if="newCustomFieldForm.fieldType === 'CODE'"
+          label="Code"
+        >
           <el-input
             v-model="newCustomFieldForm.formula"
             type="textarea"
             :rows="4"
             placeholder="Enter JavaScript code"
           />
+          <div>
+            <el-button
+              size="small"
+              class="codeBtn"
+              @click="insertCode('item.getName()')"
+              >名称</el-button
+            >
+            <el-button
+              size="small"
+              class="codeBtn"
+              @click="insertCode('item.getPrice()')"
+              >价格</el-button
+            >
+            <el-button
+              size="small"
+              @click="insertCode('item.getPurchaseDate()')"
+              class="codeBtn"
+              >购买时间</el-button
+            >
+            <el-button
+              size="small"
+              @click="insertCode('item.getCategory().getName()')"
+              class="codeBtn"
+              >分类</el-button
+            >
+            <el-button
+              size="small"
+              @click="insertCode('item.getStatusStr()')"
+              class="codeBtn"
+              >状态</el-button
+            >
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -487,7 +548,10 @@
 
           <el-button
             type="primary"
-            @click="addCustomFieldDialogVisible = false; customFieldEditMode ? updateCustomField() : addCustomField()"
+            @click="
+              addCustomFieldDialogVisible = false;
+              customFieldEditMode ? updateCustomField() : addCustomField();
+            "
           >
             {{ customFieldEditMode ? "Update" : "Add" }}
           </el-button>
@@ -510,12 +574,15 @@ import { ElMessage } from "element-plus";
 const drawer = ref(false);
 const direction = ref<DrawerProps["direction"]>("rtl");
 
-
-
 var categoriesFilters = ref([]);
 var itemStatusFilters = ref([]);
 var customFields = ref([]);
 var customFieldForm = ref({});
+
+// 创建一个计算属性，筛选出 enabled 为 true 的 customFields
+const enabledCustomFields = computed(() => {
+  return customFields.value.filter((field) => field.enabled);
+});
 
 var drawerItemId = ref();
 
@@ -559,7 +626,7 @@ var newCustomFieldForm = reactive({
   id: "",
   fieldName: "",
   fieldType: "",
-  formula: ""
+  formula: "",
 });
 
 const newTimeline = reactive({
@@ -690,8 +757,6 @@ const editItem = (item) => {
   dialogVisible.value = true;
 };
 
-
-
 const updateItem = async () => {
   try {
     await axios.put(`/api/items/${newItem.id}`, newItem);
@@ -762,8 +827,7 @@ const handleUploadExceed = (files, uploadFiles) => {
   ElMessage.warning(`只能上传一个附件`);
 };
 
-const handleUploadFileRemove = (file, uploadFiles) => {
-};
+const handleUploadFileRemove = (file, uploadFiles) => {};
 
 const addEvent = async (itemId) => {
   try {
@@ -871,8 +935,6 @@ const getDetails = async (itemId) => {
   }
 };
 
-
-
 const dictOptions = reactive({}); // key为数据字典名称，value为数据字典选项列表
 const dictKeys = computed(() => Object.keys(dictOptions)); // 数据字典名称列表
 
@@ -904,12 +966,11 @@ const fetchDictOptions = async () => {
   }
 };
 
-
 /**
  * 保存物品自定义字段
  * @param itemId 物品id
  */
- const saveCustomFields = async (itemId) => {
+const saveCustomFields = async (itemId) => {
   try {
     const itemCustomFieldValues = Object.keys(customFieldForm.value).map(
       (customFieldId) => ({
@@ -943,11 +1004,7 @@ const fetchDictOptions = async () => {
  */
 const addCustomField = async () => {
   try {
-  
-    const response = await axios.post(
-      "/api/custom_fields",
-      newCustomFieldForm
-    );
+    const response = await axios.post("/api/custom_fields", newCustomFieldForm);
 
     ElMessage({
       type: "success",
@@ -955,7 +1012,6 @@ const addCustomField = async () => {
     });
     getItems();
     getCustomFields();
-
   } catch (error) {
     console.error("Error adding custom field:", error);
     ElMessage({
@@ -964,7 +1020,6 @@ const addCustomField = async () => {
     });
   }
 };
-
 
 /**
  * 删除自定义字段
@@ -987,13 +1042,15 @@ const deleteCustomField = async (customFieldId) => {
   }
 };
 
-
 /**
  * 修改自定义字段
  */
 const updateCustomField = async () => {
   try {
-    await axios.put(`/api/custom_fields/${newCustomFieldForm.id}`, newCustomFieldForm);
+    await axios.put(
+      `/api/custom_fields/${newCustomFieldForm.id}`,
+      newCustomFieldForm
+    );
     ElMessage({
       type: "success",
       message: "Custom field updated successfully",
@@ -1008,6 +1065,27 @@ const updateCustomField = async () => {
   }
 };
 
+const setCustomFieldEnabled = async (id, enabled) => {
+  try {
+    await axios.put(`/api/custom_fields/${id}/enabled/${enabled}`);
+    ElMessage({
+      type: "success",
+      message: "Custom field updated successfully",
+    });
+    getCustomFields();
+  } catch (error) {
+    console.error("Error updating custom fields:", error);
+    ElMessage({
+      type: "error",
+      message: "Error updating custom fields:" + error.message,
+    });
+  }
+};
+
+const insertCode = (code) => {
+  newCustomFieldForm.formula += code;
+};
+
 onMounted(() => {
   getItems();
   getCategories();
@@ -1015,5 +1093,10 @@ onMounted(() => {
   getCustomFields();
   fetchDictOptions();
 });
-
 </script>
+
+<style>
+.codeBtn {
+  margin: 0 2px 0 0 !important;
+}
+</style>
