@@ -295,7 +295,7 @@
     </el-dialog>
 
     <!-- 时间轴抽屉 -->
-    <el-drawer v-model="drawer" :direction="direction" title="Details">
+    <el-drawer v-model="drawer" :direction="direction" title="Details" size="50%">
       <template #default>
         <h4 style="margin: 0 0 30px 0">Timeline events</h4>
 
@@ -370,10 +370,22 @@
               </el-select>
 
               <el-input
+              v-else-if="field.fieldType == 'TEXT'"
+v-model="customFieldForm[field.id]"
+    placeholder="Please input"
+  />
+
+              <el-input
                 v-else
                 v-model="customFieldForm[field.id]"
                 :disabled="field.fieldType == 'CODE'"
               ></el-input>
+
+
+
+
+
+
             </el-form-item>
           </div>
           <el-button type="primary" @click="saveCustomFields(drawerItemId)"
@@ -383,6 +395,65 @@
             >Add field</el-button
           >
         </el-form>
+
+
+        <el-divider border-style="dashed" />
+        <h4 style="margin: 0 0 30px 0">Sub items</h4>
+
+
+
+
+
+
+
+
+
+ <el-table
+      :data="subItemsData"
+      :default-sort="{ prop: 'date', order: 'descending' }"
+    >
+      <el-table-column label="#">
+        <template #default="{ $index }">
+          {{ $index + 1 }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="name" label="Name" title="name" width="250"></el-table-column>
+      <el-table-column prop="price" label="Price"></el-table-column>
+      <el-table-column prop="purchaseDate" label="Purchase Date"></el-table-column>
+      <el-table-column fixed="right" label="Operations" width="160">
+        <template #default="{ row }">
+          <el-button link type="primary" size="small" @click="editItem(row)"
+            >Edit</el-button
+          >
+          <el-popconfirm title="确定要删除吗？" @confirm="deleteItem(row.id)">
+            <template #reference>
+              <el-button link type="primary" size="small">Delete</el-button>
+            </template>
+          </el-popconfirm>
+        </template>
+      </el-table-column>
+    </el-table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         <!-- <el-empty v-else /> -->
       </template>
       <template #footer>
@@ -426,6 +497,7 @@
                 newCustomFieldForm.fieldName = row.fieldName;
                 newCustomFieldForm.fieldType = row.fieldType;
                 newCustomFieldForm.formula = row.formula;
+                newCustomFieldForm.enabled = row.enabled;
               "
               >Edit</el-button
             >
@@ -450,6 +522,7 @@
           newCustomFieldForm.fieldName = '';
           newCustomFieldForm.fieldType = '';
           newCustomFieldForm.formula = '';
+          newCustomFieldForm.enabled = true;
         "
       >
         Add Field
@@ -500,7 +573,7 @@
             :rows="4"
             placeholder="Enter JavaScript code"
           />
-          <div>
+          <!-- <div>
             <el-button
               size="small"
               class="codeBtn"
@@ -531,7 +604,7 @@
               class="codeBtn"
               >状态</el-button
             >
-          </div>
+          </div> -->
         </el-form-item>
       </el-form>
       <template #footer>
@@ -595,6 +668,8 @@ const filterTableData = computed(() =>
   )
 );
 
+const subItemsData = ref([]);
+
 const items = ref([]);
 const dialogVisible = ref(false);
 
@@ -627,6 +702,7 @@ var newCustomFieldForm = reactive({
   fieldName: "",
   fieldType: "",
   formula: "",
+  enabled: ""
 });
 
 const newTimeline = reactive({
@@ -889,6 +965,11 @@ const deleteAttachment = async (attachmentId) => {
  */
 const getDetails = async (itemId) => {
   drawerItemId = itemId;
+  
+
+
+
+
   try {
     const response = await axios.get("/api/items/timeline/" + itemId);
     timelineEvents.value = response.data;
@@ -933,6 +1014,29 @@ const getDetails = async (itemId) => {
     newTimeline.date = "";
     newTimeline.event = "";
   }
+
+
+  try {
+    const response = await axios.get("/api/items/subItems/" + itemId);
+    subItemsData.value = response.data;
+  } catch (error) {
+    console.error(
+      "Error fetching subItems for itemId=" + itemId + ": ",
+      error
+    );
+    ElMessage({
+      type: "error",
+      message:
+        "Error fetching subItems for itemId=" +
+        itemId +
+        ": " +
+        error.message,
+    });
+  } finally {
+    newTimeline.date = "";
+    newTimeline.event = "";
+  }
+
 };
 
 const dictOptions = reactive({}); // key为数据字典名称，value为数据字典选项列表
@@ -1085,6 +1189,9 @@ const setCustomFieldEnabled = async (id, enabled) => {
 const insertCode = (code) => {
   newCustomFieldForm.formula += code;
 };
+
+
+
 
 onMounted(() => {
   getItems();
