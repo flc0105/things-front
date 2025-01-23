@@ -17,8 +17,6 @@
         </template>
       </el-table-column>
 
-      <!-- <el-table-column prop="name" label="Name" title="name"></el-table-column> -->
-
       <el-table-column
         prop="name"
         label="Name"
@@ -36,9 +34,6 @@
             :content="scope.row.remark"
             v-if="scope.row.remark != null && scope.row.remark != ''"
           >
-            <!-- <template #default>
-            <div>{{ scope.row.name }}</div>
-          </template> -->
             <template #reference>
               {{ scope.row.name }}
             </template>
@@ -101,7 +96,6 @@
         </template>
       </el-table-column>
 
-      <!-- 新添加的列，显示标签 -->
       <el-table-column
         label="Category"
         :filters="categoriesFilters"
@@ -252,11 +246,8 @@
                   v-if="newItem.attachmentId"
                   :underline="false"
                   type="primary"
-                  :href="
-                    '/api/attachments/' + newItem.attachmentId + '/download'
-                  "
+                  :href="'/api/attachments/' + newItem.attachmentId"
                 >
-                  <!-- {{ "Selected file:" + newItem.attachmentId }} -->
                   {{ "Selected file:" + newItem.attachmentName }}
                 </el-link>
 
@@ -294,8 +285,13 @@
       </template>
     </el-dialog>
 
-    <!-- 时间轴抽屉 -->
-    <el-drawer v-model="drawer" :direction="direction" title="Details" size="50%">
+    <!-- 抽屉 -->
+    <el-drawer
+      v-model="drawer"
+      :direction="direction"
+      title="Details"
+      size="50%"
+    >
       <template #default>
         <h4 style="margin: 0 0 30px 0">Timeline events</h4>
 
@@ -347,14 +343,49 @@
         </el-form>
 
         <el-divider border-style="dashed" />
+        <h4 style="margin: 0 0 30px 0">Sub items</h4>
+
+        <el-table
+          :data="subItemsData"
+          :default-sort="{ prop: 'date', order: 'descending' }"
+        >
+          <el-table-column label="#">
+            <template #default="{ $index }">
+              {{ $index + 1 }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="name"
+            label="Name"
+            title="name"
+            width="250"
+          ></el-table-column>
+          <el-table-column prop="price" label="Price"></el-table-column>
+          <el-table-column
+            prop="purchaseDate"
+            label="Purchase Date"
+          ></el-table-column>
+          <el-table-column fixed="right" label="Operations" width="160">
+            <template #default="{ row }">
+              <el-button link type="primary" size="small" @click="editItem(row)"
+                >Edit</el-button
+              >
+              <el-popconfirm
+                title="确定要删除吗？"
+                @confirm="deleteItem(row.id)"
+              >
+                <template #reference>
+                  <el-button link type="primary" size="small">Delete</el-button>
+                </template>
+              </el-popconfirm>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-divider border-style="dashed" />
         <h4 style="margin: 0 0 30px 0">Custom fields</h4>
 
-        <!-- v-if="enabledCustomFields.values.length!=0"-->
-        <el-form
-          ref="form"
-          :model="customFieldForm"
-          label-width="auto"
-        >
+        <el-form ref="form" :model="customFieldForm" label-width="auto">
           <div v-for="field in enabledCustomFields" :key="field.id">
             <el-form-item :label="field.fieldName">
               <el-select
@@ -370,22 +401,15 @@
               </el-select>
 
               <el-input
-              v-else-if="field.fieldType == 'TEXT'"
-v-model="customFieldForm[field.id]"
-    placeholder="Please input"
-  />
+                v-else-if="field.fieldType == 'TEXT'"
+                v-model="customFieldForm[field.id]"
+              />
 
               <el-input
                 v-else
                 v-model="customFieldForm[field.id]"
                 :disabled="field.fieldType == 'CODE'"
               ></el-input>
-
-
-
-
-
-
             </el-form-item>
           </div>
           <el-button type="primary" @click="saveCustomFields(drawerItemId)"
@@ -395,66 +419,6 @@ v-model="customFieldForm[field.id]"
             >Add field</el-button
           >
         </el-form>
-
-
-        <el-divider border-style="dashed" />
-        <h4 style="margin: 0 0 30px 0">Sub items</h4>
-
-
-
-
-
-
-
-
-
- <el-table
-      :data="subItemsData"
-      :default-sort="{ prop: 'date', order: 'descending' }"
-    >
-      <el-table-column label="#">
-        <template #default="{ $index }">
-          {{ $index + 1 }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="name" label="Name" title="name" width="250"></el-table-column>
-      <el-table-column prop="price" label="Price"></el-table-column>
-      <el-table-column prop="purchaseDate" label="Purchase Date"></el-table-column>
-      <el-table-column fixed="right" label="Operations" width="160">
-        <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="editItem(row)"
-            >Edit</el-button
-          >
-          <el-popconfirm title="确定要删除吗？" @confirm="deleteItem(row.id)">
-            <template #reference>
-              <el-button link type="primary" size="small">Delete</el-button>
-            </template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
-    </el-table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <!-- <el-empty v-else /> -->
       </template>
       <template #footer>
         <div style="flex: auto">
@@ -573,38 +537,6 @@ v-model="customFieldForm[field.id]"
             :rows="4"
             placeholder="Enter JavaScript code"
           />
-          <!-- <div>
-            <el-button
-              size="small"
-              class="codeBtn"
-              @click="insertCode('item.getName()')"
-              >名称</el-button
-            >
-            <el-button
-              size="small"
-              class="codeBtn"
-              @click="insertCode('item.getPrice()')"
-              >价格</el-button
-            >
-            <el-button
-              size="small"
-              @click="insertCode('item.getPurchaseDate()')"
-              class="codeBtn"
-              >购买时间</el-button
-            >
-            <el-button
-              size="small"
-              @click="insertCode('item.getCategory().getName()')"
-              class="codeBtn"
-              >分类</el-button
-            >
-            <el-button
-              size="small"
-              @click="insertCode('item.getStatusStr()')"
-              class="codeBtn"
-              >状态</el-button
-            >
-          </div> -->
         </el-form-item>
       </el-form>
       <template #footer>
@@ -612,13 +544,6 @@ v-model="customFieldForm[field.id]"
           <el-button @click="addCustomFieldDialogVisible = false"
             >Cancel</el-button
           >
-          <!-- <el-button
-            type="primary"
-            @click="addCustomFieldDialogVisible = false; addCustomField()"
-          >
-            Confirm
-          </el-button> -->
-
           <el-button
             type="primary"
             @click="
@@ -652,7 +577,6 @@ var itemStatusFilters = ref([]);
 var customFields = ref([]);
 var customFieldForm = ref({});
 
-// 创建一个计算属性，筛选出 enabled 为 true 的 customFields
 const enabledCustomFields = computed(() => {
   return customFields.value.filter((field) => field.enabled);
 });
@@ -702,7 +626,7 @@ var newCustomFieldForm = reactive({
   fieldName: "",
   fieldType: "",
   formula: "",
-  enabled: ""
+  enabled: "",
 });
 
 const newTimeline = reactive({
@@ -716,25 +640,6 @@ const editMode = ref(false);
 const customFieldEditMode = ref(false);
 
 const fileList = ref([]); // 文件列表
-
-const getItemStatus = async () => {
-  try {
-    const response = await axios.get(
-      "/api/dict_data/getByDictCode?dictCode=ITEM_STATUS"
-    );
-    itemStatusFilters.value = response.data.map((status) => ({
-      text: status.name,
-      value: status.code,
-      id: status.id,
-    }));
-  } catch (error) {
-    console.error("Error fetching item status:", error);
-    ElMessage({
-      type: "error",
-      message: "Error fetching item status:" + error.message,
-    });
-  }
-};
 
 const getCustomFields = async () => {
   try {
@@ -800,7 +705,6 @@ const addItem = async () => {
     const response = await axios.post("/api/items", newItem);
     items.value.push(response.data);
     dialogVisible.value = false;
-    // this.$refs.newItemForm.resetFields(); // Reset form fields after adding
     ElMessage({
       type: "success",
       message: "添加成功",
@@ -883,7 +787,6 @@ const itemStatusFilterHandler = (value, row, column) => {
 };
 
 const handleUploadSuccess = (response, file, fileList) => {
-  // if (response.success) {
   ElMessage({
     type: "success",
     message: "File uploaded successfully",
@@ -951,27 +854,19 @@ const deleteAttachment = async (attachmentId) => {
       message: "Attachment deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting attachment:", error);
+    console.error(error);
     ElMessage({
       type: "error",
-      message: "Error deleting attachment:" + error.message,
+      message: "Error deleting attachment:" + error.response.data,
     });
   }
 };
 
-/**
- * 获取物品详细信息（获取时间轴信息和自定义字段）
- * @param itemId 物品id
- */
 const getDetails = async (itemId) => {
   drawerItemId = itemId;
-  
-
-
-
 
   try {
-    const response = await axios.get("/api/items/timeline/" + itemId);
+    const response = await axios.get("/api/timeline/item/" + itemId);
     timelineEvents.value = response.data;
   } catch (error) {
     console.error(
@@ -992,7 +887,7 @@ const getDetails = async (itemId) => {
   }
 
   try {
-    const response = await axios.get("/api/items/customFields/" + itemId);
+    const response = await axios.get("/api/custom_fields/item/" + itemId);
     customFieldForm.value = response.data.reduce((acc, field) => {
       acc[field.customFieldId] = field.value; // 使用方括号来设置动态的属性名
       return acc;
@@ -1015,28 +910,20 @@ const getDetails = async (itemId) => {
     newTimeline.event = "";
   }
 
-
   try {
     const response = await axios.get("/api/items/subItems/" + itemId);
     subItemsData.value = response.data;
   } catch (error) {
-    console.error(
-      "Error fetching subItems for itemId=" + itemId + ": ",
-      error
-    );
+    console.error("Error fetching subItems for itemId=" + itemId + ": ", error);
     ElMessage({
       type: "error",
       message:
-        "Error fetching subItems for itemId=" +
-        itemId +
-        ": " +
-        error.message,
+        "Error fetching subItems for itemId=" + itemId + ": " + error.message,
     });
   } finally {
     newTimeline.date = "";
     newTimeline.event = "";
   }
-
 };
 
 const dictOptions = reactive({}); // key为数据字典名称，value为数据字典选项列表
@@ -1061,6 +948,13 @@ const fetchDictOptions = async () => {
         dictOptions[item.dictCode].push(item);
       }
     });
+
+    // 物品状态筛选器
+    itemStatusFilters.value = dictOptions["ITEM_STATUS"].map((status) => ({
+      text: status.name,
+      value: status.code,
+      id: status.id,
+    }));
   } catch (error) {
     console.error("Error fetching dict options:", error);
     ElMessage({
@@ -1085,7 +979,7 @@ const saveCustomFields = async (itemId) => {
     );
 
     const response = await axios.post(
-      "/api/items/customFields/",
+      "/api/custom_fields/values",
       itemCustomFieldValues
     );
 
@@ -1186,24 +1080,10 @@ const setCustomFieldEnabled = async (id, enabled) => {
   }
 };
 
-const insertCode = (code) => {
-  newCustomFieldForm.formula += code;
-};
-
-
-
-
 onMounted(() => {
   getItems();
   getCategories();
-  getItemStatus();
   getCustomFields();
   fetchDictOptions();
 });
 </script>
-
-<style>
-.codeBtn {
-  margin: 0 2px 0 0 !important;
-}
-</style>
