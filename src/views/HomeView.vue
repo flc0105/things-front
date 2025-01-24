@@ -3,6 +3,31 @@
     <!-- 按钮 -->
     <el-button type="primary" @click="showAddDialog(false)">Add Item</el-button>
     <el-button @click="getItems">Refresh</el-button>
+    <el-popover
+      :visible="customFilterPopoverVisible"
+      placement="bottom"
+      title="Custom Filter"
+      :width="200"
+    >
+      <template #default>
+        <el-cascader
+          v-model="cascaderValue"
+          :options="formattedCustomFieldValues"
+          :props="props"
+          @change="handleChange"
+          clearable
+          @clear="handleCascaderClear"
+        />
+      </template>
+      <template #reference>
+        <el-button
+          class="m-2"
+          @click="customFilterPopoverVisible = !customFilterPopoverVisible"
+        >
+          Custom Filter
+        </el-button>
+      </template>
+    </el-popover>
 
     <!-- 表格 -->
     <el-table
@@ -647,6 +672,8 @@ const dialogVisible = ref(false);
 const customFieldsDialogVisible = ref(false);
 const addCustomFieldDialogVisible = ref(false);
 
+const customFilterPopoverVisible = ref(false);
+
 const newItem = reactive({
   id: "",
   name: "",
@@ -1190,14 +1217,104 @@ const clear = () => {
 
 //添加分类 结束
 
+// 自定义筛选器
+
+const getCustomFieldValues = async () => {
+  try {
+    const response = await axios.get("/api/custom_fields/values");
+    customFieldValues.value = response.data;
+    console.log(customFieldValues);
+  } catch (error) {
+    console.error("Error fetching custom field values:", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching custom fields values" + error.message,
+    });
+  }
+};
+
+var customFieldValues = ref({});
+// // 将原始数据格式化为 el-cascader 组件需要的格式
+// const formatCustomFieldValues = (data) => {
+//   return Object.keys(data.value).map((key) => ({
+//     value: key,
+//     label: key,
+//     children: data.value[key].map((value) => ({
+//       value: value,
+//       label: value,
+//     })),
+//   }));
+// };
+
+// // 格式化后的选项
+// const formattedCustomFieldValues = ref(
+//   formatCustomFieldValues(customFieldValues)
+// );
+
+const getFieldNameById = (id) => {
+  const field = customFields.value.find((field) => field.id === id);
+  return field ? field.fieldName : String(id); // 如果找不到对应的 fieldName，则返回 id 的字符串形式
+};
+
+const formattedCustomFieldValues = computed(() => {
+  return Object.keys(customFieldValues.value).map((key) => ({
+    value: key,
+    label: getFieldNameById(parseInt(key, 10)),
+    children: customFieldValues.value[key].map((value) => ({
+      value: value,
+      label: value,
+    })),
+  }));
+});
+
+// el-cascader 组件的 v-model
+const cascaderValue = ref([]);
+
+// // el-cascader 组件的 props
+// const props = {
+//   expandTrigger: "hover" as const,
+// };
+
+// 选项改变时的处理函数
+const handleChange = async (value) => {
+  console.log("Selected value:", value);
+
+  console.log(value[0]);
+  console.log(value[1]);
+
+  try {
+    const response = await axios.get("/api/custom_fields/items", {
+      params: {
+        fieldId: value[0],
+        fieldValue: value[1],
+      },
+    });
+    items.value = response.data;
+  } catch (error) {
+    console.error("Error fetching items:", error);
+    ElMessage({
+      type: "error",
+      message: "Error fetching items:" + error,
+    });
+  }
+
+  ElMessage({
+    message: "已完成筛选：" + getFieldNameById(parseInt(value[0], 10)) + "=" + value[1],
+  });
+};
+
+const handleCascaderClear = async () => {
+  getItems();
+}
+
 onMounted(() => {
   getItems();
   getCategories();
   getCustomFields();
   fetchDictOptions();
+  getCustomFieldValues();
 });
 </script>
-
 
 <style>
 .option-input {
