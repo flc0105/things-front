@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- 按钮 -->
-    <el-button type="primary" @click="showAddDialog">Add Item</el-button>
+    <el-button type="primary" @click="showAddDialog(false)">Add Item</el-button>
     <el-button @click="getItems">Refresh</el-button>
 
     <!-- 表格 -->
@@ -270,6 +270,22 @@
             </template>
           </el-upload>
         </el-form-item>
+
+        <el-form-item v-if="isSubItem" label="Parent item" prop="parentId">
+        <el-select
+    v-model="newItem.parentId"
+    filterable
+    placeholder="Select parent item"
+  >
+    <el-option
+      v-for="item in items"
+      :key="item.id"
+      :label="item.name"
+      :value="item.id"
+    />
+  </el-select>
+</el-form-item>
+
       </el-form>
 
       <template #footer>
@@ -381,6 +397,10 @@
             </template>
           </el-table-column>
         </el-table>
+
+        <el-button type="primary" @click="showAddDialog(true)" style="margin-top: 10px;"
+            >Add</el-button
+          >
 
         <el-divider border-style="dashed" />
         <h4 style="margin: 0 0 30px 0">Custom fields</h4>
@@ -610,6 +630,7 @@ const newItem = reactive({
   status: "",
   attachmentId: "",
   attachmentName: "",
+  parentId: null
 });
 
 var timelineEvents = ref([
@@ -636,6 +657,7 @@ const newTimeline = reactive({
 });
 
 const editMode = ref(false);
+const isSubItem = ref(false);
 
 const customFieldEditMode = ref(false);
 
@@ -685,7 +707,7 @@ const getItems = async () => {
   }
 };
 
-const showAddDialog = () => {
+const showAddDialog = (issub) => {
   fileList.value.length = 0;
   newItem.id = "";
   newItem.name = "";
@@ -698,6 +720,12 @@ const showAddDialog = () => {
   newItem.attachmentName = "";
   editMode.value = false;
   dialogVisible.value = true;
+  isSubItem.value = issub;
+  if (issub) {
+    newItem.parentId = drawerItemId;
+  } else {
+    newItem.parentId = null;
+  }
 };
 
 const addItem = async () => {
@@ -710,6 +738,10 @@ const addItem = async () => {
       message: "添加成功",
     });
     getItems();
+    // 添加子物品完成后刷新子物品列表
+    if (drawerItemId) {
+      getDetails(drawerItemId);
+    }
   } catch (error) {
     console.error("Error adding item:", error);
     ElMessage({
@@ -729,11 +761,13 @@ const editItem = (item) => {
   newItem.categoryId = item.categoryId;
   newItem.status = item.status;
   newItem.attachmentId = item.attachmentId;
+  newItem.parentId = item.parentId;
   if (item.attachment) {
     newItem.attachmentName = item.attachment.originalFileName;
   }
 
   editMode.value = true;
+  isSubItem.value = false;
   dialogVisible.value = true;
 };
 
