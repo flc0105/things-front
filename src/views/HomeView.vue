@@ -193,6 +193,31 @@
               :label="cat.text"
               :value="cat.id"
             ></el-option>
+            <!--添加分类 开始-->
+            <template #footer>
+              <el-button
+                v-if="!isAdding"
+                text
+                bg
+                size="small"
+                @click="onAddOption"
+              >
+                Add an option
+              </el-button>
+              <template v-else>
+                <el-input
+                  v-model="optionName"
+                  class="option-input"
+                  placeholder="input option name"
+                  size="small"
+                />
+                <el-button type="primary" size="small" @click="onConfirm">
+                  confirm
+                </el-button>
+                <el-button size="small" @click="clear">cancel</el-button>
+              </template>
+            </template>
+            <!--添加分类 结束-->
           </el-select>
         </el-form-item>
 
@@ -272,20 +297,19 @@
         </el-form-item>
 
         <el-form-item v-if="isSubItem" label="Parent item" prop="parentId">
-        <el-select
-    v-model="newItem.parentId"
-    filterable
-    placeholder="Select parent item"
-  >
-    <el-option
-      v-for="item in items"
-      :key="item.id"
-      :label="item.name"
-      :value="item.id"
-    />
-  </el-select>
-</el-form-item>
-
+          <el-select
+            v-model="newItem.parentId"
+            filterable
+            placeholder="Select parent item"
+          >
+            <el-option
+              v-for="item in items"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -398,9 +422,12 @@
           </el-table-column>
         </el-table>
 
-        <el-button type="primary" @click="showAddDialog(true)" style="margin-top: 10px;"
-            >Add</el-button
-          >
+        <el-button
+          type="primary"
+          @click="showAddDialog(true)"
+          style="margin-top: 10px"
+          >Add</el-button
+        >
 
         <el-divider border-style="dashed" />
         <h4 style="margin: 0 0 30px 0">Custom fields</h4>
@@ -630,7 +657,7 @@ const newItem = reactive({
   status: "",
   attachmentId: "",
   attachmentName: "",
-  parentId: null
+  parentId: null,
 });
 
 var timelineEvents = ref([
@@ -1114,6 +1141,55 @@ const setCustomFieldEnabled = async (id, enabled) => {
   }
 };
 
+//添加分类 开始
+
+const isAdding = ref(false);
+const optionName = ref("");
+
+const onAddOption = () => {
+  isAdding.value = true;
+};
+
+/**
+ * 添加分类
+ */
+const addCategory = async (categoryName) => {
+  try {
+    const response = await axios.post("/api/categories", {
+      name: categoryName,
+    });
+
+    ElMessage({
+      type: "success",
+      message: "Category added successfully",
+    });
+    getCategories();
+  } catch (error) {
+    console.error("Error adding category:", error);
+    ElMessage({
+      type: "error",
+      message: "Error adding category:" + error.message,
+    });
+  }
+};
+const onConfirm = () => {
+  if (optionName.value) {
+    addCategory(optionName.value);
+    // cities.value.push({
+    //   label: optionName.value,
+    //   value: optionName.value,
+    // })
+    clear();
+  }
+};
+
+const clear = () => {
+  optionName.value = "";
+  isAdding.value = false;
+};
+
+//添加分类 结束
+
 onMounted(() => {
   getItems();
   getCategories();
@@ -1121,3 +1197,11 @@ onMounted(() => {
   fetchDictOptions();
 });
 </script>
+
+
+<style>
+.option-input {
+  width: 100%;
+  margin-bottom: 8px;
+}
+</style>
