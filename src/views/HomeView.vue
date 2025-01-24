@@ -472,10 +472,19 @@
                 />
               </el-select>
 
-              <el-input
+              <!-- <el-input
                 v-else-if="field.fieldType == 'TEXT'"
                 v-model="customFieldForm[field.id]"
-              />
+              /> -->
+
+              <el-autocomplete
+               v-else-if="field.fieldType == 'TEXT'"
+        v-model="customFieldForm[field.id]"
+        :fetch-suggestions="querySearch.bind(null, field.id)"
+        clearable
+        placeholder="Please Input"
+        @select="handleAutoCompleteSelect"/>
+
 
               <el-input
                 v-else
@@ -763,7 +772,7 @@ const getItems = async () => {
 
 const showAddDialog = (issub) => {
   fileList.value.length = 0;
-  newItem.id = "";
+  newItem.id = "";        
   newItem.name = "";
   newItem.price = "";
   newItem.purchaseDate = "";
@@ -1076,6 +1085,9 @@ const saveCustomFields = async (itemId) => {
       message: "Custom fields saved successfully",
     });
     getItems();
+
+    //保存自定义字段后更新筛选器信息，方便下次补全
+    getCustomFieldValues();
   } catch (error) {
     console.error("Error saving custom fields:", error);
     ElMessage({
@@ -1278,10 +1290,9 @@ const cascaderValue = ref([]);
 // 选项改变时的处理函数
 const handleChange = async (value) => {
   console.log("Selected value:", value);
-
-  console.log(value[0]);
-  console.log(value[1]);
-
+  if (!value) {
+    return;
+  }
   try {
     const response = await axios.get("/api/custom_fields/items", {
       params: {
@@ -1291,10 +1302,10 @@ const handleChange = async (value) => {
     });
     items.value = response.data;
   } catch (error) {
-    console.error("Error fetching items:", error);
+    console.error("Error fetching items by custom field value:", error);
     ElMessage({
       type: "error",
-      message: "Error fetching items:" + error,
+      message: "Error fetching items by custom field value:" + error,
     });
   }
 
@@ -1306,6 +1317,30 @@ const handleChange = async (value) => {
 const handleCascaderClear = async () => {
   getItems();
 }
+
+
+// 自动补全
+
+const querySearch = (fieldId, queryString: string, cb: any) => {
+  const values= customFieldValues.value[fieldId];
+  const results = values.filter(createFilter(queryString));
+  const final = results.map(value => ({ value }));
+  // call callback function to return suggestions
+  cb(final)
+}
+
+const createFilter = (queryString: string) => {
+  return (item) => {
+    return (
+      item.toLowerCase().indexOf(queryString.toLowerCase()) === 0
+    )
+  }
+}
+
+const handleAutoCompleteSelect = (item: Record<string, any>) => {
+  console.log(item)
+}
+
 
 onMounted(() => {
   getItems();
