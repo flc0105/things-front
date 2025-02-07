@@ -29,12 +29,20 @@
       </template>
     </el-popover>
 
+    <el-button @click="exportAsXlsx">Export</el-button>
+
     <!-- 表格 -->
     <el-table
       :data="filterTableData"
       style="width: 100%"
       :default-sort="{ prop: 'date', order: 'descending' }"
       show-summary
+      id="el-table"
+
+      row-key="id"
+
+      :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+
     >
       <el-table-column label="#">
         <template #default="{ $index }">
@@ -649,6 +657,10 @@ import { UploadFilled } from "@element-plus/icons-vue";
 import { Delete } from "@element-plus/icons-vue";
 
 import { ElMessage } from "element-plus";
+
+
+import * as XLSX from 'xlsx';
+import  FileSaver from 'file-saver';
 
 const drawer = ref(false);
 const direction = ref<DrawerProps["direction"]>("rtl");
@@ -1268,6 +1280,46 @@ const getFieldNameById = (id) => {
   return field ? field.fieldName : String(id); // 如果找不到对应的 fieldName，则返回 id 的字符串形式
 };
 
+// const exportAsXlsx = () => {
+//       let filename = ''
+//       const XlsxParam = { raw: true}
+//       const elTable = XLSX.utils.table_to_book(document.getElementById('el-table'))
+//       filename = 'test.xlsx'
+
+
+//       const wbout = XLSX.write(elTable, { bookType: 'xlsx', type: 'array' }); // 将工作簿转换为数组缓冲区
+//       FileSaver.saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'data.xlsx'); // 使用 file-saver 保存文件
+// }
+
+const exportAsXlsx = () => {
+  let filename = 'test.xlsx';
+  const elTable = document.getElementById('el-table');
+  const wb = XLSX.utils.table_to_book(elTable); // 将表格转换为工作簿对象
+  const ws = wb.Sheets[wb.SheetNames[0]]; // 获取第一个工作表
+
+  // 获取工作表的范围
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const lastColIndex = range.e.c; // 获取最后一列的索引
+
+  // 遍历每一行，删除最后一列的单元格
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const cellRef = XLSX.utils.encode_cell({ c: lastColIndex, r: r });
+    delete ws[cellRef]; // 删除单元格
+  }
+
+  // 更新工作表的范围，排除最后一列
+  range.e.c--;
+  ws['!ref'] = XLSX.utils.encode_range(range);
+
+  // 将工作簿转换为数组缓冲区
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  // 使用 file-saver 保存文件
+  FileSaver.saveAs(new Blob([wbout], { type: 'application/octet-stream' }), filename);
+}
+
+
+
+
 const formattedCustomFieldValues = computed(() => {
   return Object.keys(customFieldValues.value).map((key) => ({
     value: key,
@@ -1349,6 +1401,8 @@ onMounted(() => {
   fetchDictOptions();
   getCustomFieldValues();
 });
+
+
 </script>
 
 <style>
