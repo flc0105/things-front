@@ -29,7 +29,7 @@
       </template>
     </el-popover>
 
-    <el-button @click="exportAsXlsx">Export</el-button>
+  
 
     <!-- 表格 -->
     <el-table
@@ -37,12 +37,10 @@
       style="width: 100%"
       :default-sort="{ prop: 'date', order: 'descending' }"
       show-summary
+
       id="el-table"
-
       row-key="id"
-
       :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-
     >
       <el-table-column label="#">
         <template #default="{ $index }">
@@ -375,7 +373,13 @@
             :key="index"
             :timestamp="activity.date"
           >
-            {{ activity.event }}
+          <!-- <span v-if="activity.eventType">
+       
+          {{         dictOptions["EVENT_TYPE"].find(
+                (option) => option.code === activity.eventType
+              ).name }} -
+          </span> -->
+            {{ activity.eventDescription }}
             <el-popconfirm
               title="确定要删除吗？"
               @confirm="deleteEvent(drawerItemId, activity.id)"
@@ -407,12 +411,33 @@
             ></el-date-picker>
           </el-form-item>
 
-          <el-form-item label="Event name" prop="event">
-            <el-input v-model="newTimeline.event"></el-input>
+      
+
+          <el-form-item label="Event type" prop="eventType">
+
+
+            <el-select
+                v-model="newTimeline.eventType"
+              >
+                <el-option
+                  v-for="opt in dictOptions['EVENT_TYPE']"
+                  :key="opt.code"
+                  :label="opt.name"
+                  :value="opt.code"
+                />
+              </el-select>
           </el-form-item>
+
+              <el-form-item label="Event description" prop="eventDescription">
+            <el-input v-model="newTimeline.eventDescription"></el-input>
+          </el-form-item>
+
+
           <el-button type="primary" @click="addEvent(drawerItemId)"
             >Add</el-button
           >
+
+
         </el-form>
 
         <el-divider border-style="dashed" />
@@ -645,6 +670,9 @@
         </div>
       </template>
     </el-dialog>
+
+
+
   </div>
 </template>
 
@@ -652,15 +680,8 @@
 import type { DrawerProps } from "element-plus";
 import { ref, onMounted, reactive, computed } from "vue";
 import axios from "axios";
-
-import { UploadFilled } from "@element-plus/icons-vue";
-import { Delete } from "@element-plus/icons-vue";
-
+import { UploadFilled,Delete } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-
-
-import * as XLSX from 'xlsx';
-import  FileSaver from 'file-saver';
 
 const drawer = ref(false);
 const direction = ref<DrawerProps["direction"]>("rtl");
@@ -695,6 +716,7 @@ const addCustomFieldDialogVisible = ref(false);
 
 const customFilterPopoverVisible = ref(false);
 
+
 const newItem = reactive({
   id: "",
   name: "",
@@ -712,7 +734,8 @@ var timelineEvents = ref([
   {
     id: "",
     itemId: "",
-    event: "",
+    eventDescription: "",
+    eventType: "",
     date: "",
   },
 ]);
@@ -727,7 +750,8 @@ var newCustomFieldForm = reactive({
 
 const newTimeline = reactive({
   itemId: "",
-  event: "",
+  eventDescription: "",
+  eventType: "",
   date: "",
 });
 
@@ -813,10 +837,10 @@ const addItem = async () => {
       message: "添加成功",
     });
     getItems();
-    // 添加子物品完成后刷新子物品列表
-    if (drawerItemId) {
-      getDetails(drawerItemId);
-    }
+    // // 添加子物品完成后刷新子物品列表
+    // if (drawerItemId) {
+    //   getDetails(drawerItemId);
+    // }
   } catch (error) {
     console.error("Error adding item:", error);
     ElMessage({
@@ -992,7 +1016,8 @@ const getDetails = async (itemId) => {
     });
   } finally {
     newTimeline.date = "";
-    newTimeline.event = "";
+    newTimeline.eventDescription = "";
+    newTimeline.eventType = "";
   }
 
   try {
@@ -1016,7 +1041,8 @@ const getDetails = async (itemId) => {
     });
   } finally {
     newTimeline.date = "";
-    newTimeline.event = "";
+    newTimeline.eventDescription = "";
+    newTimeline.eventType = "";
   }
 
   try {
@@ -1031,7 +1057,8 @@ const getDetails = async (itemId) => {
     });
   } finally {
     newTimeline.date = "";
-    newTimeline.event = "";
+    newTimeline.eventDescription = "";
+    newTimeline.eventType = "";
   }
 };
 
@@ -1279,45 +1306,6 @@ const getFieldNameById = (id) => {
   const field = customFields.value.find((field) => field.id === id);
   return field ? field.fieldName : String(id); // 如果找不到对应的 fieldName，则返回 id 的字符串形式
 };
-
-// const exportAsXlsx = () => {
-//       let filename = ''
-//       const XlsxParam = { raw: true}
-//       const elTable = XLSX.utils.table_to_book(document.getElementById('el-table'))
-//       filename = 'test.xlsx'
-
-
-//       const wbout = XLSX.write(elTable, { bookType: 'xlsx', type: 'array' }); // 将工作簿转换为数组缓冲区
-//       FileSaver.saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'data.xlsx'); // 使用 file-saver 保存文件
-// }
-
-const exportAsXlsx = () => {
-  let filename = 'test.xlsx';
-  const elTable = document.getElementById('el-table');
-  const wb = XLSX.utils.table_to_book(elTable); // 将表格转换为工作簿对象
-  const ws = wb.Sheets[wb.SheetNames[0]]; // 获取第一个工作表
-
-  // 获取工作表的范围
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  const lastColIndex = range.e.c; // 获取最后一列的索引
-
-  // 遍历每一行，删除最后一列的单元格
-  for (let r = range.s.r; r <= range.e.r; r++) {
-    const cellRef = XLSX.utils.encode_cell({ c: lastColIndex, r: r });
-    delete ws[cellRef]; // 删除单元格
-  }
-
-  // 更新工作表的范围，排除最后一列
-  range.e.c--;
-  ws['!ref'] = XLSX.utils.encode_range(range);
-
-  // 将工作簿转换为数组缓冲区
-  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  // 使用 file-saver 保存文件
-  FileSaver.saveAs(new Blob([wbout], { type: 'application/octet-stream' }), filename);
-}
-
-
 
 
 const formattedCustomFieldValues = computed(() => {
