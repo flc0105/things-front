@@ -93,7 +93,7 @@
                   :key="index"
                   :timestamp="activity.date"
                 >
-                  {{ activity.event }}
+                  {{ activity.eventDescription }}
                 </el-timeline-item>
               </el-timeline>
             </div>
