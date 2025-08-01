@@ -1,5 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import MobileHomeView from '../views/MobileHomeView.vue'
+import { isMobile } from '@/utils/device' // 需要实现的设备检测工具
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -7,7 +10,11 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView,
+      component: () => 
+      isMobile() 
+        ? import('@/views/MobileHomeView.vue')
+        : import('@/views/HomeView.vue')
+      // component: MobileView,
       // children: [
       //   {
       //     path: "/things",

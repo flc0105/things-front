@@ -1,196 +1,110 @@
 <template>
-  <div>
-    <!-- 按钮 -->
-    <el-button type="primary" @click="showAddDialog(false)">Add Item</el-button>
-    <el-button @click="getItems">Refresh</el-button>
-    <el-popover
-      :visible="customFilterPopoverVisible"
-      placement="bottom"
-      title="Custom Filter"
-      :width="200"
-    >
-      <template #default>
-        <el-cascader
-          v-model="cascaderValue"
-          :options="formattedCustomFieldValues"
-          :props="props"
-          @change="handleChange"
-          clearable
-          @clear="handleCascaderClear"
-        />
-      </template>
-      <template #reference>
-        <el-button
-          class="m-2"
-          @click="  if(!customFilterPopoverVisible) getCustomFieldValues(); customFilterPopoverVisible = !customFilterPopoverVisible"
-        >
-          Custom Filter
-        </el-button>
-      </template>
-    </el-popover>
-
-    <!-- 表格 -->
-    <el-table
-      :data="filterTableData"
-      style="width: 100%"
-      :default-sort="{ prop: 'date', order: 'descending' }"
-      show-summary
-      id="el-table"
-      row-key="id"
-      ><!--:tree-props="{ children: 'children', hasChildren: 'hasChildren' }"-->
-      <el-table-column label="#">
-        <template #default="{ $index }">
-          {{ $index + 1 }}
-        </template>
-      </el-table-column>
-
-      <el-table-column
-        prop="name"
-        label="Name"
-        title="name"
-        width="300"
-        sortable
+  <div class="mobile-container">
+    <!-- 操作按钮区域 -->
+    <div class="action-buttons">
+      <el-button type="primary" size="small" @click="showAddDialog(false)">Add</el-button>
+      <el-button size="small" @click="getItems">Refresh</el-button>
+      <el-button size="small" @click="getCustomFieldValues">Filter</el-button>
+    </div>
+    
+    <!-- 搜索框 -->
+    <div class="search-box">
+      <el-input
+        v-model="search"
+        placeholder="Search..."
+        clearable
+        size="small"
       >
-        <template #default="scope">
-          <el-popover
-            effect="light"
-            trigger="hover"
-            placement="top"
-            width="auto"
-            :title="scope.row.name"
-            :content="scope.row.remark"
-            v-if="scope.row.remark != null && scope.row.remark != ''"
-          >
-            <template #reference>
-              {{ scope.row.name }}
-            </template>
-          </el-popover>
+        <template #prefix>
+          <el-icon><Search /></el-icon>
         </template>
-      </el-table-column>
-
-      <el-table-column prop="price" label="Price" sortable></el-table-column>
-      <el-table-column prop="purchaseDate" label="Purchase Date" sortable>
-        <template #default="scope">
-          <el-popover
-            effect="light"
-            trigger="hover"
-            placement="right"
-            width="400"
-            :title="scope.row.name"
-            v-if="
-              scope.row.timelineEvents != null &&
-              scope.row.timelineEvents.length != 0
-            "
-          >
-            <div style="margin-top: 30px">
-              <el-timeline>
-                <el-timeline-item
-                  v-for="(activity, index) in scope.row.timelineEvents"
-                  :key="index"
-                  :timestamp="activity.date"
-                >
-                  {{ activity.eventDescription }}
-                </el-timeline-item>
-              </el-timeline>
-            </div>
-            <template #reference>
-              {{ scope.row.purchaseDate }}
-            </template>
-          </el-popover>
-        </template>
-      </el-table-column>
-      <el-table-column prop="ownershipDuration" label="Ownership Duration">
-        <template #default="scope">
-          <el-text
-            :style="{ color: scope.row.status === 'SOLD' ? 'gray' : '' }"
-          >
-            {{ scope.row.ownershipDuration }}
-          </el-text>
-        </template>
-      </el-table-column>
-
-      <el-table-column
-        prop="averageDailyPrice"
-        label="Average Daily Price"
-        sortable
-      >
-        <template #default="scope">
-          <el-text
-            :style="{ color: scope.row.status === 'SOLD' ? 'gray' : '' }"
-          >
-            {{ scope.row.averageDailyPrice }}
-          </el-text>
-        </template>
-      </el-table-column>
-
-      <el-table-column
-        label="Category"
-        :filters="categoriesFilters"
-        :filter-method="categoryFilterHandler"
-      >
-        <template #default="{ row }">
-          <el-tag style="margin-right: 5px" v-if="row.category">{{
-            row.category.name
-          }}</el-tag>
-        </template>
-      </el-table-column>
-
-      <el-table-column
-        label="Status"
-        :filters="itemStatusFilters"
-        :filter-method="itemStatusFilterHandler"
-      >
-        <template #default="{ row }">
-          <el-tag
-            :type="row.status === 'NORMAL' ? 'success' : 'danger'"
-            style="margin-right: 5px"
-            v-if="row.statusStr"
-            >{{ row.statusStr }}</el-tag
-          >
-        </template>
-      </el-table-column>
-
-      <el-table-column fixed="right" label="Operations" width="160">
-        <template #header>
-          <el-input
-            v-model="search"
+      </el-input>
+    </div>
+    
+    <!-- 列表内容 -->
+    <div class="item-list">
+      <div v-for="(item, index) in filterTableData" :key="item.id" class="item-card">
+        <div class="item-header">
+          <span class="item-index">#{{ index + 1 }}</span>
+          <span class="item-name">{{ item.name }}</span>
+          <el-tag 
+            :type="item.status === 'NORMAL' ? 'success' : 'danger'" 
             size="small"
-            placeholder="Type to search"
-          />
-        </template>
-
-        <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="editItem(row)"
-            >Edit</el-button
+            v-if="item.statusStr"
           >
-
-          <el-popconfirm title="确定要删除吗？" @confirm="deleteItem(row.id)">
+            {{ item.statusStr }}
+          </el-tag>
+        </div>
+        
+        <div class="item-details">
+          <div class="detail-row">
+            <span class="detail-label">Price:</span>
+            <span class="detail-value">{{ item.price }}</span>
+          </div>
+          
+          <div class="detail-row">
+            <span class="detail-label">Purchase Date:</span>
+            <span class="detail-value">{{ item.purchaseDate }}</span>
+          </div>
+          
+          <div class="detail-row">
+            <span class="detail-label">Duration:</span>
+            <span class="detail-value" :style="{ color: item.status === 'SOLD' ? 'gray' : '' }">
+              {{ item.ownershipDuration }}
+            </span>
+          </div>
+          
+          <div class="detail-row" v-if="item.category">
+            <span class="detail-label">Category:</span>
+            <span class="detail-value">
+              <el-tag size="small">{{ item.category.name }}</el-tag>
+            </span>
+          </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="item-actions">
+          <el-button link type="primary" size="small" @click="editItem(item)">Edit</el-button>
+          <el-popconfirm title="Delete this item?" @confirm="deleteItem(item.id)">
             <template #reference>
               <el-button link type="primary" size="small">Delete</el-button>
             </template>
           </el-popconfirm>
-
-          <el-button
-            link
-            type="primary"
-            size="small"
-            @click="
-              getDetails(row.id);
-              drawerItemName=row.name;
-              drawer = true;
-            "
-            >Details</el-button
+          <el-button 
+            link 
+            type="primary" 
+            size="small" 
+            @click="getDetails(item.id); drawerItemName=item.name; drawer = true;"
           >
-        </template>
-      </el-table-column>
-    </el-table>
-
+            Details
+          </el-button>
+        </div>
+        
+        <!-- 备注提示 -->
+        <el-popover
+          v-if="item.remark"
+          placement="top-start"
+          :title="item.name"
+          :width="200"
+          trigger="click"
+          :content="item.remark"
+        >
+          <template #reference>
+            <el-icon class="remark-icon"><InfoFilled /></el-icon>
+          </template>
+        </el-popover>
+      </div>
+    </div>
+    
+ 
     <!-- 添加或修改对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="editMode ? 'Edit Item' : 'Add Item'"
-    >
-      <el-form :model="newItem" ref="newItemForm" label-width="120px">
+      :title="editMode ? 'Edit Item' : 'Add Item'" width="90%" top="5vh"     
+    :lock-scroll="true"
+    custom-class="mobile-dialog"
+    ><!-- 关键修改：width top -->
+      <el-form :model="newItem" ref="newItemForm" label-position="top"><!-- 关键修改：label-position="top" -->
         <el-form-item label="Name" prop="name">
           <el-input v-model="newItem.name"></el-input>
         </el-form-item>
@@ -356,9 +270,9 @@
     <!-- 抽屉 -->
     <el-drawer
       v-model="drawer"
-      :direction="direction"
+      direction="btt"
       :title="'Details - ' + drawerItemName"
-      size="50%"
+      size="80%"
     >
       <template #default>
         <h4 style="margin: 0 0 30px 0">Timeline events</h4>
@@ -518,7 +432,9 @@
       </template>
     </el-drawer>
 
-    <el-dialog v-model="customFieldsDialogVisible" title="Custom fields">
+    <el-dialog v-model="customFieldsDialogVisible" title="Custom fields" width="90%" top="5vh"     
+    :lock-scroll="true"
+    custom-class="mobile-dialog">
       <el-table :data="customFields">
         <el-table-column property="id" label="ID" />
         <el-table-column property="fieldName" label="Name" />
@@ -587,7 +503,9 @@
     <el-dialog
       v-model="addCustomFieldDialogVisible"
       :title="customFieldEditMode ? 'Edit custom field' : 'Add custom field'"
-      width="500"
+       width="90%" top="5vh"     
+    :lock-scroll="true"
+    custom-class="mobile-dialog"
     >
       <el-form :model="newCustomFieldForm" label-width="auto">
         <el-form-item label="Field name">
@@ -647,8 +565,123 @@
         </div>
       </template>
     </el-dialog>
+
   </div>
 </template>
+
+<style scoped>
+.mobile-container {
+  padding: 10px;
+  max-width: 100%;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  margin-bottom: 15px;
+}
+
+.item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item-card {
+  position: relative;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.item-index {
+  color: #999;
+  font-size: 0.9em;
+}
+
+.item-name {
+  flex-grow: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.detail-row {
+  display: flex;
+  font-size: 0.9em;
+}
+
+.detail-label {
+  color: #666;
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  flex-grow: 1;
+}
+
+.item-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.remark-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: #999;
+  cursor: pointer;
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .item-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+  }
+  
+  .detail-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .detail-label {
+    width: auto;
+  }
+}
+
+
+/* 移动端专属样式 */
+.mobile-dialog {
+  border-radius: 12px !important;
+}
+
+</style>
+
 
 <script lang="ts" setup>
 import type { DrawerProps } from "element-plus";
@@ -1308,9 +1341,3 @@ onMounted(() => {
 });
 </script>
 
-<style>
-.option-input {
-  width: 100%;
-  margin-bottom: 8px;
-}
-</style>
