@@ -4,7 +4,96 @@
     <div class="action-buttons">
       <el-button type="primary" size="small" @click="showAddDialog(false)">Add</el-button>
       <el-button size="small" @click="getItems">Refresh</el-button>
-      <el-button size="small" @click="getCustomFieldValues">Filter</el-button>
+    <!-- 筛选按钮 -->
+    <el-button size="small" @click="showFilter = true">Filter</el-button>
+
+      
+
+  <!-- 筛选面板 -->
+  <el-drawer 
+    v-model="showFilter"
+    title="数据筛选"
+    direction="btt"
+    size="60%"
+  >
+    <div class="filter-content">
+      <!-- 分类筛选 -->
+      <div class="filter-group">
+        <h4>商品分类</h4>
+        <el-checkbox-group v-model="selectedCategories">
+          <el-checkbox 
+            v-for="cat in categoriesFilters" 
+            :key="cat.value"
+            :label="cat.value"
+          >
+            {{ cat.text }}
+          </el-checkbox>
+        </el-checkbox-group>
+      </div>
+
+      <!-- 状态筛选 -->
+      <div class="filter-group">
+        <h4>状态</h4>
+        <el-radio-group v-model="selectedStatus">
+          <el-radio 
+            v-for="status in itemStatusFilters" 
+            :key="status.value"
+            :label="status.value"
+          >
+            {{ status.text }}
+          </el-radio>
+        </el-radio-group>
+      </div>
+    </div>
+
+    <!--排序-->
+      <!-- 排序选择 -->
+             <div class="filter-group">
+        <h4>排序</h4>
+    <el-select 
+      v-model="sortField" 
+      placeholder="排序方式"
+      size="small"
+      class="sort-selector"
+    >
+      <el-option label="按名称" value="name" />
+      <el-option label="按价格" value="price" />
+      <el-option label="按购买时间" value="purchaseDate" />
+    </el-select>
+    
+    <el-radio-group 
+      v-model="sortOrder" 
+      size="small"
+      class="sort-order"
+    >
+      <el-radio-button label="asc">升序</el-radio-button>
+      <el-radio-button label="desc">降序</el-radio-button>
+    </el-radio-group>
+    </div>
+
+
+    <!-- 操作按钮 -->
+    <template #footer>
+      <el-button @click="resetFilter">重置</el-button>
+      <el-button type="primary" @click="applyFilter">应用</el-button>
+    </template>
+  </el-drawer>
+
+  <!-- 筛选结果提示 -->
+  <div v-if="activeFilterCount" class="filter-tag">
+    已选 {{ activeFilterCount }} 个条件
+    <el-tag
+      v-for="tag in activeFilters"
+      :key="tag.key"
+      closable
+      @close="removeFilter(tag.key)"
+    >
+      {{ tag.label }}
+    </el-tag>
+  </div>
+
+
+
     </div>
     
     <!-- 搜索框 -->
@@ -23,7 +112,7 @@
     
     <!-- 列表内容 -->
     <div class="item-list">
-      <div v-for="(item, index) in filterTableData" :key="item.id" class="item-card">
+      <div v-for="(item, index) in sortedItems" :key="item.id" class="item-card">
         <div class="item-header">
           <span class="item-index">#{{ index + 1 }}</span>
           <span class="item-name">{{ item.name }}</span>
@@ -567,9 +656,80 @@
     </el-dialog>
 
   </div>
+
+
+ <!-- 分段筛选 -->
+  <div class="segmented-filter">
+    <el-scrollbar>
+      <div class="filter-scroll">
+        <!-- 分类筛选 -->
+        <div class="filter-section">
+          <div 
+            v-for="cat in categoriesFilters"
+            :key="cat.value"
+            class="filter-item"
+            :class="{ active: selectedCategories.includes(cat.value) }"
+            @click="toggleCategory(cat.value)"
+          >
+            {{ cat.text }}
+          </div>
+        </div>
+
+        <!-- 状态筛选 -->
+        <div class="filter-section">
+          <div 
+            v-for="status in itemStatusFilters"
+            :key="status.value"
+            class="filter-item"
+            :class="{ active: selectedStatus === status.value }"
+            @click="selectedStatus = status.value"
+          >
+            {{ status.text }}
+          </div>
+        </div>
+      </div>
+    </el-scrollbar>
+  </div>
+  
 </template>
 
 <style scoped>
+
+/* 筛选条样式 */
+.filter-bar {
+  padding: 12px;
+  background: #f5f7fa;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* 筛选标签组 */
+.filter-tag {
+  padding: 8px 12px;
+  background: #f0f2f5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 筛选分组 */
+.filter-group {
+  margin-bottom: 24px;
+}
+
+.filter-group h4 {
+  margin: 0 0 12px 0;
+  color: #606266;
+}
+
+
+
+
+
+
+
+
 .mobile-container {
   padding: 10px;
   max-width: 100%;
@@ -680,6 +840,14 @@
   border-radius: 12px !important;
 }
 
+
+
+
+
+
+
+
+
 </style>
 
 
@@ -687,7 +855,7 @@
 import type { DrawerProps } from "element-plus";
 import { ref, onMounted, reactive, computed } from "vue";
 import axios from "axios";
-import { UploadFilled, Delete } from "@element-plus/icons-vue";
+import { UploadFilled, Delete, Search, Filter } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 
 const drawer = ref(false);
@@ -705,14 +873,14 @@ const enabledCustomFields = computed(() => {
 var drawerItemId = ref();
 var drawerItemName = ref();
 
-const search = ref("");
-const filterTableData = computed(() =>
-  items.value.filter(
-    (data) =>
-      !search.value ||
-      data.name.toLowerCase().includes(search.value.toLowerCase())
-  )
-);
+// const search = ref("");
+// const filterTableData = computed(() =>
+//   items.value.filter(
+//     (data) =>
+//       !search.value ||
+//       data.name.toLowerCase().includes(search.value.toLowerCase())
+//   )
+// );
 
 const subItemsData = ref([]);
 
@@ -1339,5 +1507,115 @@ onMounted(() => {
   getCustomFields();
   fetchDictOptions();
 });
-</script>
 
+
+
+
+
+
+// 筛选状态
+const selectedCategories = ref([])
+const selectedStatus = ref(null)
+const showFilter = ref(false)
+
+
+
+const search = ref("");
+const filterTableData = computed(() => {
+  return items.value.filter(item => {
+    // 搜索条件
+    const searchMatch = !search.value || 
+      item.name.toLowerCase().includes(search.value.toLowerCase())
+    
+    // 分类筛选
+    console.log(selectedCategories.value)
+    const categoryMatch = selectedCategories.value.length === 0 || 
+      selectedCategories.value.includes(item.category?.name || '')
+    
+    // 状态筛选
+    const statusMatch = !selectedStatus.value || 
+      item.status === selectedStatus.value
+    
+    return searchMatch && categoryMatch && statusMatch
+  })
+})
+
+
+// const search = ref("");
+// const filterTableData = computed(() =>
+//   items.value.filter(
+//     (data) =>
+//       !search.value ||
+//       data.name.toLowerCase().includes(search.value.toLowerCase())
+//   )
+// );
+
+// 显示当前筛选条件
+const activeFilters = computed(() => {
+  const filters = []
+  if (selectedCategories.value.length) {
+    filters.push({
+      key: 'category',
+      label: `分类: ${selectedCategories.value.map(v => 
+        categoriesFilters.value.find(c => c.value === v).text
+      ).join(',')}`
+    })
+  }
+  if (selectedStatus.value) {
+    filters.push({
+      key: 'status',
+      label: `状态: ${itemStatusFilters.value.find(s => s.value === selectedStatus.value).text}`
+    })
+  }
+  return filters
+})
+
+const activeFilterCount = computed(() => {
+  return (selectedCategories.value.length > 0 ? 1 : 0) + 
+         (selectedStatus.value ? 1 : 0)
+})
+
+// 筛选操作
+const applyFilter = () => {
+  showFilter.value = false
+  // 筛选逻辑已在 computed 中自动处理
+}
+
+const resetFilter = () => {
+  selectedCategories.value = []
+  selectedStatus.value = null
+}
+
+const removeFilter = (key) => {
+  if (key === 'category') selectedCategories.value = []
+  if (key === 'status') selectedStatus.value = null
+}
+
+
+// paixu
+// 排序
+const sortField = ref<'name' | 'price' | 'purchaseDate'>('purchaseDate')
+const sortOrder = ref<'asc' | 'desc'>('desc')
+
+// 排序后的数据
+const sortedItems = computed(() => {
+  return [...filterTableData.value].sort((a, b) => {
+    // 获取比较值
+    let valA, valB
+    
+    if (sortField.value === 'purchaseDate') {
+      valA = new Date(a.purchaseDate).getTime()
+      valB = new Date(b.purchaseDate).getTime()
+    } else {
+      valA = a[sortField.value]
+      valB = b[sortField.value]
+    }
+
+    // 执行比较
+    return sortOrder.value === 'asc' 
+      ? valA > valB ? 1 : -1
+      : valA < valB ? 1 : -1
+  })
+})
+
+</script>

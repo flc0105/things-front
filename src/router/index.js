@@ -23,6 +23,11 @@ const router = createRouter({
       //   },
       // ]
     },
+    {
+      path: '/mobile',
+      name: 'mobile',
+      component: MobileHomeView
+    }
   ]
 })
 
