@@ -40,8 +40,8 @@
 
       id="el-table"
       row-key="id"
-      :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-    >
+      
+    ><!--:tree-props="{ children: 'children', hasChildren: 'hasChildren' }"-->
       <el-table-column label="#">
         <template #default="{ $index }">
           {{ $index + 1 }}
@@ -776,6 +776,20 @@ const getCustomFields = async () => {
   }
 };
 
+// const getEnabledCustomFields = async () => {
+//   try {
+//     const response = await axios.get("/api/custom_fields/enabled");
+//     enabledCustomFields.value = response.data;
+//     console.log(customFields);
+//   } catch (error) {
+//     console.error("Error fetching custom fields:", error);
+//     ElMessage({
+//       type: "error",
+//       message: "Error fetching custom fields:" + error.message,
+//     });
+//   }
+// };
+
 const getCategories = async () => {
   try {
     const response = await axios.get("/api/categories");
@@ -1285,22 +1299,6 @@ const getCustomFieldValues = async () => {
 };
 
 var customFieldValues = ref({});
-// // 将原始数据格式化为 el-cascader 组件需要的格式
-// const formatCustomFieldValues = (data) => {
-//   return Object.keys(data.value).map((key) => ({
-//     value: key,
-//     label: key,
-//     children: data.value[key].map((value) => ({
-//       value: value,
-//       label: value,
-//     })),
-//   }));
-// };
-
-// // 格式化后的选项
-// const formattedCustomFieldValues = ref(
-//   formatCustomFieldValues(customFieldValues)
-// );
 
 const getFieldNameById = (id) => {
   const field = customFields.value.find((field) => field.id === id);
@@ -1371,7 +1369,9 @@ const querySearch = (fieldId, queryString: string, cb: any) => {
 
 const createFilter = (queryString: string) => {
   return (item) => {
+    if (item==null)return;
     return (
+      
       item.toLowerCase().indexOf(queryString.toLowerCase()) === 0
     )
   }
