@@ -29,19 +29,15 @@
       </template>
     </el-popover>
 
-  
-
     <!-- 表格 -->
     <el-table
       :data="filterTableData"
       style="width: 100%"
       :default-sort="{ prop: 'date', order: 'descending' }"
       show-summary
-
       id="el-table"
       row-key="id"
-      
-    ><!--:tree-props="{ children: 'children', hasChildren: 'hasChildren' }"-->
+      ><!--:tree-props="{ children: 'children', hasChildren: 'hasChildren' }"-->
       <el-table-column label="#">
         <template #default="{ $index }">
           {{ $index + 1 }}
@@ -373,12 +369,6 @@
             :key="index"
             :timestamp="activity.date"
           >
-          <!-- <span v-if="activity.eventType">
-       
-          {{         dictOptions["EVENT_TYPE"].find(
-                (option) => option.code === activity.eventType
-              ).name }} -
-          </span> -->
             {{ activity.eventDescription }}
             <el-popconfirm
               title="确定要删除吗？"
@@ -411,33 +401,24 @@
             ></el-date-picker>
           </el-form-item>
 
-      
-
           <el-form-item label="Event type" prop="eventType">
-
-
-            <el-select
-                v-model="newTimeline.eventType"
-              >
-                <el-option
-                  v-for="opt in dictOptions['EVENT_TYPE']"
-                  :key="opt.code"
-                  :label="opt.name"
-                  :value="opt.code"
-                />
-              </el-select>
+            <el-select v-model="newTimeline.eventType">
+              <el-option
+                v-for="opt in dictOptions['EVENT_TYPE']"
+                :key="opt.code"
+                :label="opt.name"
+                :value="opt.code"
+              />
+            </el-select>
           </el-form-item>
 
-              <el-form-item label="Event description" prop="eventDescription">
+          <el-form-item label="Event description" prop="eventDescription">
             <el-input v-model="newTimeline.eventDescription"></el-input>
           </el-form-item>
-
 
           <el-button type="primary" @click="addEvent(drawerItemId)"
             >Add</el-button
           >
-
-
         </el-form>
 
         <el-divider border-style="dashed" />
@@ -505,19 +486,14 @@
                 />
               </el-select>
 
-              <!-- <el-input
+              <el-autocomplete
                 v-else-if="field.fieldType == 'TEXT'"
                 v-model="customFieldForm[field.id]"
-              /> -->
-
-              <el-autocomplete
-               v-else-if="field.fieldType == 'TEXT'"
-        v-model="customFieldForm[field.id]"
-        :fetch-suggestions="querySearch.bind(null, field.id)"
-        clearable
-        placeholder="Please Input"
-        @select="handleAutoCompleteSelect"/>
-
+                :fetch-suggestions="querySearch.bind(null, field.id)"
+                clearable
+                placeholder="Please Input"
+                @select="handleAutoCompleteSelect"
+              />
 
               <el-input
                 v-else
@@ -670,9 +646,6 @@
         </div>
       </template>
     </el-dialog>
-
-
-
   </div>
 </template>
 
@@ -680,7 +653,7 @@
 import type { DrawerProps } from "element-plus";
 import { ref, onMounted, reactive, computed } from "vue";
 import axios from "axios";
-import { UploadFilled,Delete } from "@element-plus/icons-vue";
+import { UploadFilled, Delete } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 
 const drawer = ref(false);
@@ -715,7 +688,6 @@ const customFieldsDialogVisible = ref(false);
 const addCustomFieldDialogVisible = ref(false);
 
 const customFilterPopoverVisible = ref(false);
-
 
 const newItem = reactive({
   id: "",
@@ -776,19 +748,6 @@ const getCustomFields = async () => {
   }
 };
 
-// const getEnabledCustomFields = async () => {
-//   try {
-//     const response = await axios.get("/api/custom_fields/enabled");
-//     enabledCustomFields.value = response.data;
-//     console.log(customFields);
-//   } catch (error) {
-//     console.error("Error fetching custom fields:", error);
-//     ElMessage({
-//       type: "error",
-//       message: "Error fetching custom fields:" + error.message,
-//     });
-//   }
-// };
 
 const getCategories = async () => {
   try {
@@ -822,7 +781,7 @@ const getItems = async () => {
 
 const showAddDialog = (issub) => {
   fileList.value.length = 0;
-  newItem.id = "";        
+  newItem.id = "";
   newItem.name = "";
   newItem.price = "";
   newItem.purchaseDate = "";
@@ -1013,61 +972,25 @@ const getDetails = async (itemId) => {
   drawerItemId = itemId;
 
   try {
-    const response = await axios.get("/api/timeline/item/" + itemId);
-    timelineEvents.value = response.data;
-  } catch (error) {
-    console.error(
-      "Error fetching timeline events for itemId=" + itemId + ": ",
-      error
-    );
-    ElMessage({
-      type: "error",
-      message:
-        "Error fetching timeline events for itemId=" +
-        itemId +
-        ": " +
-        error.message,
-    });
-  } finally {
-    newTimeline.date = "";
-    newTimeline.eventDescription = "";
-    newTimeline.eventType = "";
-  }
-
-  try {
-    const response = await axios.get("/api/custom_fields/item/" + itemId);
-    customFieldForm.value = response.data.reduce((acc, field) => {
+    const response = await axios.get("/api/items/" + itemId);
+    timelineEvents.value = response.data.timelineEvents;
+    subItemsData.value = response.data.subItems;
+    customFieldForm.value = response.data.itemCustomFieldValueList.reduce((acc, field) => {
       acc[field.customFieldId] = field.value; // 使用方括号来设置动态的属性名
       return acc;
     }, {});
   } catch (error) {
     console.error(
-      "Error fetching custom fields for itemId=" + itemId + ": ",
+      "Error fetching details for itemId=" + itemId + ": ",
       error
     );
     ElMessage({
       type: "error",
       message:
-        "Error fetching custom fields for itemId=" +
+        "Error fetching details for itemId=" +
         itemId +
         ": " +
         error.message,
-    });
-  } finally {
-    newTimeline.date = "";
-    newTimeline.eventDescription = "";
-    newTimeline.eventType = "";
-  }
-
-  try {
-    const response = await axios.get("/api/items/subItems/" + itemId);
-    subItemsData.value = response.data;
-  } catch (error) {
-    console.error("Error fetching subItems for itemId=" + itemId + ": ", error);
-    ElMessage({
-      type: "error",
-      message:
-        "Error fetching subItems for itemId=" + itemId + ": " + error.message,
     });
   } finally {
     newTimeline.date = "";
@@ -1267,10 +1190,6 @@ const addCategory = async (categoryName) => {
 const onConfirm = () => {
   if (optionName.value) {
     addCategory(optionName.value);
-    // cities.value.push({
-    //   label: optionName.value,
-    //   value: optionName.value,
-    // })
     clear();
   }
 };
@@ -1305,7 +1224,6 @@ const getFieldNameById = (id) => {
   return field ? field.fieldName : String(id); // 如果找不到对应的 fieldName，则返回 id 的字符串形式
 };
 
-
 const formattedCustomFieldValues = computed(() => {
   return Object.keys(customFieldValues.value).map((key) => ({
     value: key,
@@ -1319,11 +1237,6 @@ const formattedCustomFieldValues = computed(() => {
 
 // el-cascader 组件的 v-model
 const cascaderValue = ref([]);
-
-// // el-cascader 组件的 props
-// const props = {
-//   expandTrigger: "hover" as const,
-// };
 
 // 选项改变时的处理函数
 const handleChange = async (value) => {
@@ -1348,39 +1261,38 @@ const handleChange = async (value) => {
   }
 
   ElMessage({
-    message: "已完成筛选：" + getFieldNameById(parseInt(value[0], 10)) + "=" + value[1],
+    message:
+      "已完成筛选：" +
+      getFieldNameById(parseInt(value[0], 10)) +
+      "=" +
+      value[1],
   });
 };
 
 const handleCascaderClear = async () => {
   getItems();
-}
-
+};
 
 // 自动补全
 
 const querySearch = (fieldId, queryString: string, cb: any) => {
-  const values= customFieldValues.value[fieldId];
+  const values = customFieldValues.value[fieldId];
   const results = values.filter(createFilter(queryString));
-  const final = results.map(value => ({ value }));
+  const final = results.map((value) => ({ value }));
   // call callback function to return suggestions
-  cb(final)
-}
+  cb(final);
+};
 
 const createFilter = (queryString: string) => {
   return (item) => {
-    if (item==null)return;
-    return (
-      
-      item.toLowerCase().indexOf(queryString.toLowerCase()) === 0
-    )
-  }
-}
+    if (item == null) return;
+    return item.toLowerCase().indexOf(queryString.toLowerCase()) === 0;
+  };
+};
 
 const handleAutoCompleteSelect = (item: Record<string, any>) => {
-  console.log(item)
-}
-
+  console.log(item);
+};
 
 onMounted(() => {
   getItems();
@@ -1389,8 +1301,6 @@ onMounted(() => {
   fetchDictOptions();
   getCustomFieldValues();
 });
-
-
 </script>
 
 <style>
